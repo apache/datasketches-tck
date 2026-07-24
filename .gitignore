@@ -15,9 +15,44 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# Temporary files
+tmp_datasketches_java/
+tmp_datasketches_cpp/
+
 # VSCode project files
 .vscode
 !.vscode/settings.json
 
 # OSX files
 **/.DS_Store
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[codz]
+*$py.class
+
+# Environments
+.env
+.envrc
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+*.egg
+MANIFEST
