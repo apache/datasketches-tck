@@ -1,0 +1,27 @@
+[project]
+name = "datasketches-tck"
+version = "0.0.0"
+requires-python = ">=3.14,<3.15"
+classifiers = ["Private :: Do Not Upload"]
+dependencies = ["typer"]
+
+[dependency-groups]
+dev = [
+  "pyright",
+  "ruff",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.31,<0.12"]
+build-backend = "uv_build"
+
+[tool.uv]
+required-version = ">=0.11.31"
+
+[tool.uv.build-backend]
+module-root = "tools"
+module-name = "tck"
+
+[tool.ruff]
+indent-width = 2
+target-version = "py314"

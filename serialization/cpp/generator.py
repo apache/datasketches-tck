@@ -14,15 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-root = true
-
-[*]
-end_of_line = lf
-indent_style = space
-insert_final_newline = true
-trim_trailing_whitespace = true
-
-[*.toml]
-indent_size = tab
-tab_width = 2
