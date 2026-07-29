@@ -18,6 +18,7 @@
 # Temporary files
 tmp_datasketches_java/
 tmp_datasketches_cpp/
+tmp_datasketches_go/
 
 # VSCode project files
 .vscode
