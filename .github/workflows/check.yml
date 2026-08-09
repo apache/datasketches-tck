@@ -36,8 +36,26 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Setup mise
-        uses: jdx/mise-action@v4
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: false
 
-      - name: Check Go
-        run: mise run check
+      - name: Check formatting
+        shell: bash
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "${unformatted}" ]; then
+            echo "The following Go files need formatting:" >&2
+            echo "${unformatted}" >&2
+            exit 1
+          fi
+
+      - name: Lint Go
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.12.2
+
+      - name: Test Go
+        run: go test ./...
