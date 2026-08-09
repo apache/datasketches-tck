@@ -16,9 +16,7 @@
 # under the License.
 
 # Temporary files
-tmp_datasketches_java/
-tmp_datasketches_cpp/
-tmp_datasketches_go/
+tmp_datasketches_*/
 
 # VSCode project files
 .vscode

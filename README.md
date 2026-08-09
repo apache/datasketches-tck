@@ -2,7 +2,7 @@
 
 This repository provides a Technology Compatibility Kit for the DataSketches library.
 
-A Technology Compatibility Kit (TCK) a suite of tests that at least nominally checks a particular DataSketches implementation for compliance.
+A Technology Compatibility Kit (TCK) is a suite of tests that checks a particular DataSketches implementation for compatibility.
 
 ## Overview
 
@@ -21,4 +21,3 @@ If you are interested in making contributions to this site, please see our [Comm
 ## License
 
 Licensed under the Apache License, Version 2.0: http://www.apache.org/licenses/LICENSE-2.0
-

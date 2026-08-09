@@ -1,0 +1,26 @@
+
+[TestPrintResultAllowsOnlyUnstableModifications - 1]
+╭────────┬───────────┬───────┬──────────────────┬─────────────────────────╮
+│ CHANGE │ STABILITY │ CHECK │ SNAPSHOT         │ CONTENT (SIZE · SHA256) │
+├────────┼───────────┼───────┼──────────────────┼─────────────────────────┤
+│ M      │ unstable  │ allow │ probabilistic.sk │ old 12 B · aaaaaaaaaaaa │
+│        │           │       │                  │ new 12 B · bbbbbbbbbbbb │
+╰────────┴───────────┴───────┴──────────────────┴─────────────────────────╯
+Summary: 0 added · 1 modified (1 probabilistic) · 0 deleted
+! Snapshot set and stable contents are unchanged; 1 probabilistic content modification is allowed.
+
+---
+
+[TestPrintResultIncludesDetailedFileChanges - 1]
+╭────────┬───────────┬───────┬─────────────┬─────────────────────────╮
+│ CHANGE │ STABILITY │ CHECK │ SNAPSHOT    │ CONTENT (SIZE · SHA256) │
+├────────┼───────────┼───────┼─────────────┼─────────────────────────┤
+│ A      │ stable    │ block │ added.sk    │ new 16 B · bbbbbbbbbbbb │
+│ M      │ unstable  │ allow │ modified.sk │ old 12 B · aaaaaaaaaaaa │
+│        │           │       │             │ new 16 B · bbbbbbbbbbbb │
+│ D      │ stable    │ block │ deleted.sk  │ old 12 B · aaaaaaaaaaaa │
+╰────────┴───────────┴───────┴─────────────┴─────────────────────────╯
+Summary: 1 added · 1 modified (1 probabilistic) · 1 deleted
+✗ serialization/go/snapshots has 2 blocking changes.
+
+---
