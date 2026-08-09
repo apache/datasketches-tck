@@ -41,7 +41,7 @@ func printResult(output io.Writer, root string, mode snapshots.Mode, result snap
 	changeTable := table.NewWriter()
 	changeTable.SetStyle(table.StyleRounded)
 	changeTable.SetColumnConfigs([]table.ColumnConfig{{
-		Name: "Snapshot", WidthMax: 56, WidthMaxEnforcer: text.WrapHard,
+		Name: "Snapshot", WidthMax: 60, WidthMaxEnforcer: text.WrapHard,
 	}})
 	changeTable.AppendHeader(table.Row{"Change", "Stability", "Check", "Snapshot", "Content (size · sha256)"})
 	for _, change := range result.Changes {
