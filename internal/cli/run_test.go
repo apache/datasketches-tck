@@ -19,7 +19,6 @@ package cli
 
 import (
 	"bytes"
-	"errors"
 	"path/filepath"
 	"testing"
 
@@ -75,21 +74,26 @@ func TestPrintResultAllowsOnlyUnstableModifications(t *testing.T) {
 	snaps.WithConfig(snaps.Raw()).MatchSnapshot(t, output.String())
 }
 
-func TestRunReportsOutputFailure(t *testing.T) {
+func TestRunPrintsSnapshotsHelp(t *testing.T) {
 	t.Parallel()
 
-	wantErr := errors.New("output failed")
+	var output bytes.Buffer
 	var stderr bytes.Buffer
-	require.Equal(t, 1, Run(t.Context(), nil, errorWriter{err: wantErr}, &stderr))
-	require.Contains(t, stderr.String(), wantErr.Error())
+	require.Equal(t, 0, Run(t.Context(), []string{"snapshots"}, &output, &stderr))
+	require.Empty(t, stderr.String())
+	snaps.WithConfig(snaps.Raw()).MatchSnapshot(t, output.String())
 }
 
-type errorWriter struct {
-	err error
-}
+func TestRunRejectsUnsupportedLanguage(t *testing.T) {
+	t.Parallel()
 
-func (writer errorWriter) Write([]byte) (int, error) {
-	return 0, writer.err
+	var output bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := Run(t.Context(), []string{"snapshots", "check", "python"}, &output, &stderr)
+
+	require.Equal(t, 1, exitCode)
+	require.Empty(t, output.String())
+	require.Contains(t, stderr.String(), `invalid argument "python" for "tck snapshots check"`)
 }
 
 func testMetadata(size int64, fill byte) snapshots.FileMetadata {

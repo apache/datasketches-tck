@@ -1,16 +1,44 @@
 
 [TestPrintResultAllowsOnlyUnstableModifications - 1]
-M unstable probabilistic.sk (12 B, sha256:aaaaaaaaaaaa -> 12 B, sha256:bbbbbbbbbbbb)
-Summary: 0 added, 1 modified (1 unstable), 0 deleted.
-Stable snapshots are current; 1 unstable modification(s) are allowed.
+╭────────┬───────────┬───────┬──────────────────┬─────────────────────────╮
+│ CHANGE │ STABILITY │ CHECK │ SNAPSHOT         │ CONTENT (SIZE · SHA256) │
+├────────┼───────────┼───────┼──────────────────┼─────────────────────────┤
+│ M      │ unstable  │ allow │ probabilistic.sk │ old 12 B · aaaaaaaaaaaa │
+│        │           │       │                  │ new 12 B · bbbbbbbbbbbb │
+╰────────┴───────────┴───────┴──────────────────┴─────────────────────────╯
+Summary: 0 added · 1 modified (1 probabilistic) · 0 deleted
+! Snapshot set and stable contents are unchanged; 1 probabilistic content modification is allowed.
 
 ---
 
 [TestPrintResultIncludesDetailedFileChanges - 1]
-A stable   added.sk (16 B, sha256:bbbbbbbbbbbb)
-M unstable modified.sk (12 B, sha256:aaaaaaaaaaaa -> 16 B, sha256:bbbbbbbbbbbb)
-D stable   deleted.sk (12 B, sha256:aaaaaaaaaaaa)
-Summary: 1 added, 1 modified (1 unstable), 1 deleted.
-serialization/go/snapshots has 2 blocking change(s).
+╭────────┬───────────┬───────┬─────────────┬─────────────────────────╮
+│ CHANGE │ STABILITY │ CHECK │ SNAPSHOT    │ CONTENT (SIZE · SHA256) │
+├────────┼───────────┼───────┼─────────────┼─────────────────────────┤
+│ A      │ stable    │ block │ added.sk    │ new 16 B · bbbbbbbbbbbb │
+│ M      │ unstable  │ allow │ modified.sk │ old 12 B · aaaaaaaaaaaa │
+│        │           │       │             │ new 16 B · bbbbbbbbbbbb │
+│ D      │ stable    │ block │ deleted.sk  │ old 12 B · aaaaaaaaaaaa │
+╰────────┴───────────┴───────┴─────────────┴─────────────────────────╯
+Summary: 1 added · 1 modified (1 probabilistic) · 1 deleted
+✗ serialization/go/snapshots has 2 blocking changes.
+
+---
+
+[TestRunPrintsSnapshotsHelp - 1]
+Generate, compare, and update serialization snapshots
+
+Usage:
+  tck snapshots [flags]
+  tck snapshots [command]
+
+Available Commands:
+  check       Check the snapshot set and stable snapshot contents
+  update      Replace committed snapshots with newly generated snapshots
+
+Flags:
+  -h, --help   help for snapshots
+
+Use "tck snapshots [command] --help" for more information about a command.
 
 ---

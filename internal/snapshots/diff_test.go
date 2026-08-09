@@ -59,16 +59,38 @@ func TestCompareDirectoriesReportsDetailedChanges(t *testing.T) {
 	require.Equal(t, want, changes)
 }
 
-func TestResultOnlyAllowsUnstableModifications(t *testing.T) {
+func TestChangeIsBlocking(t *testing.T) {
 	t.Parallel()
 
-	result := Result{Changes: []Change{{Status: ChangeModified, Stability: Unstable}}}
-	require.False(t, result.HasBlockingChanges())
+	tests := []struct {
+		name     string
+		change   Change
+		blocking bool
+	}{
+		{name: "stable addition", change: Change{Status: ChangeAdded, Stability: Stable}, blocking: true},
+		{name: "unstable addition", change: Change{Status: ChangeAdded, Stability: Unstable}, blocking: true},
+		{name: "stable modification", change: Change{Status: ChangeModified, Stability: Stable}, blocking: true},
+		{name: "unstable modification", change: Change{Status: ChangeModified, Stability: Unstable}, blocking: false},
+		{name: "stable deletion", change: Change{Status: ChangeDeleted, Stability: Stable}, blocking: true},
+		{name: "unstable deletion", change: Change{Status: ChangeDeleted, Stability: Unstable}, blocking: true},
+		{name: "unknown status", change: Change{Status: ChangeStatus("?"), Stability: Unstable}, blocking: true},
+		{name: "unknown stability", change: Change{Status: ChangeModified, Stability: Stability("unknown")}, blocking: true},
+	}
 
-	result.Changes = append(result.Changes, Change{Status: ChangeAdded, Stability: Unstable})
-	result.Changes = append(result.Changes, Change{Status: ChangeModified, Stability: Stable})
-	result.Changes = append(result.Changes, Change{Status: ChangeDeleted, Stability: Stable})
-	require.Equal(t, 3, result.BlockingChangeCount())
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, test.blocking, test.change.IsBlocking())
+		})
+	}
+
+	changes := make([]Change, 0, len(tests))
+	for _, test := range tests {
+		changes = append(changes, test.change)
+	}
+	result := Result{Changes: changes}
+	require.True(t, result.HasBlockingChanges())
+	require.Equal(t, 7, result.BlockingChangeCount())
 }
 
 func TestReplaceDirectoryReplacesTheExactFileSet(t *testing.T) {

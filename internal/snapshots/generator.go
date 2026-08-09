@@ -50,11 +50,6 @@ func Languages() []string {
 	return []string{"cpp", "go", "java"}
 }
 
-func HasLanguage(language string) bool {
-	_, found := generators[language]
-	return found
-}
-
 type commandRunner struct {
 	stdout io.Writer
 	stderr io.Writer

@@ -48,6 +48,13 @@ type Change struct {
 	After     *FileMetadata
 }
 
+// IsBlocking reports whether a change must fail snapshot check mode. Only a
+// content modification to an existing unstable snapshot is expected to vary;
+// additions and deletions change the compatibility corpus and always block.
+func (change Change) IsBlocking() bool {
+	return change.Status != ChangeModified || change.Stability != Unstable
+}
+
 type fileRecord struct {
 	filename string
 	metadata FileMetadata

@@ -46,7 +46,7 @@ func (result Result) HasBlockingChanges() bool {
 func (result Result) BlockingChangeCount() int {
 	count := 0
 	for _, change := range result.Changes {
-		if change.Status != ChangeModified || change.Stability == Stable {
+		if change.IsBlocking() {
 			count++
 		}
 	}
