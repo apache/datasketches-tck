@@ -2,7 +2,7 @@
 
 This repository provides a Technology Compatibility Kit for the DataSketches library.
 
-A Technology Compatibility Kit (TCK) a suite of tests that at least nominally checks a particular DataSketches implementation for compliance.
+A Technology Compatibility Kit (TCK) is a suite of tests that checks a particular DataSketches implementation for compatibility.
 
 ## Overview
 
@@ -18,20 +18,21 @@ The repository-local Go CLI checks out pinned DataSketches implementations and r
 
 ```shell
 mise install
+mise run tck -- snapshots --help
 mise run tck -- snapshots check go
 mise run tck -- snapshots update go
 ```
 
 Replace `go` with `cpp`, `java`, or `all`. Git is required for every generator. The C++ generator additionally requires CTest and a C++ compiler, while the Go generator requires Make.
 
-`check` leaves the repository unchanged. It reports added, modified, and deleted files with their stability class, size, and SHA-256 digest. Added or deleted files and modifications to stable snapshots make the check fail. Modifications to known probabilistic snapshots are reported but allowed. `update` atomically replaces the selected snapshot directory with freshly generated files.
+`check` leaves the repository unchanged. Its change table shows the stability class, check disposition, and before/after size and SHA-256 digest for each file. Added or deleted files and modifications to stable snapshots make the check fail. Modifications to known probabilistic snapshots are reported but allowed. `update` atomically replaces the selected snapshot directory with freshly generated files.
 
 The upstream repositories and exact commits are pinned together in `internal/snapshots/revisions.go`. The stability rules reflect repeated generation at those commits and the project discussion about probabilistic sketches:
 
-| Source | Snapshots allowed to vary |
-| --- | --- |
+| Source       | Snapshots allowed to vary                                                                                                        |
+|--------------|----------------------------------------------------------------------------------------------------------------------------------|
 | C++ and Java | Bloom filters; KLL and classic quantiles after compaction (`n >= 1000`); REQ after compaction (`n >= 100`); VarOpt sampling mode |
-| Go | Bloom filters; REQ after compaction (`n >= 100`); reservoir and VarOpt sampling mode |
+| Go           | Bloom filters; REQ after compaction (`n >= 100`); reservoir and VarOpt sampling mode                                             |
 
 The pinned Go KLL generator enables its deterministic test offset, so its generated KLL files remain strictly checked. These rules do not claim that probabilistic snapshots are logically unchecked: the upstream generation suites validate their construction, while consuming DataSketches implementations remain responsible for compatibility assertions with algorithm-appropriate tolerances.
 
