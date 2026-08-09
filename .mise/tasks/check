@@ -1,3 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Run Go checks"
+
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -13,15 +16,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-[tools]
-cmake = "4.4.2"
-go = "1.26.5"
-golangci-lint = "2.12.2"
-java = "temurin-25.0.2+10.0.LTS"
-maven = "3.9.16"
+set -euo pipefail
 
-[tasks.tck]
-description = "Run the repository-local DataSketches TCK CLI"
-dir = "{{ cwd }}"
-env = { TCK_REPOSITORY_ROOT = "{{ config_root }}" }
-run = 'go run "$MISE_PROJECT_ROOT/cmd/tck"'
+task_directory="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+repository_root="$(git -C "$task_directory" rev-parse --show-toplevel)"
+cd "$repository_root"
+
+unformatted="$(
+  git ls-files -z --cached --others --exclude-standard -- '*.go' |
+    while IFS= read -r -d '' file; do
+      if [[ -f "$file" ]]; then
+        gofmt -l "$file"
+      fi
+    done
+)"
+if [[ -n "$unformatted" ]]; then
+  echo "The following Go files need formatting:" >&2
+  echo "$unformatted" >&2
+  exit 1
+fi
+
+golangci-lint run
+go test ./...

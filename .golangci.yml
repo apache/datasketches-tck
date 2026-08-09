@@ -13,15 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-[tools]
-cmake = "4.4.2"
-go = "1.26.5"
-golangci-lint = "2.12.2"
-java = "temurin-25.0.2+10.0.LTS"
-maven = "3.9.16"
+version: "2"
 
-[tasks.tck]
-description = "Run the repository-local DataSketches TCK CLI"
-dir = "{{ cwd }}"
-env = { TCK_REPOSITORY_ROOT = "{{ config_root }}" }
-run = 'go run "$MISE_PROJECT_ROOT/cmd/tck"'
+linters:
+  default: standard

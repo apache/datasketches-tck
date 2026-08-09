@@ -26,7 +26,9 @@ import (
 
 func (runner commandRunner) run(ctx context.Context, directory, name string, arguments ...string) error {
 	commandLine := strings.Join(append([]string{name}, arguments...), " ")
-	fmt.Fprintf(runner.stdout, "$ %s\n", commandLine)
+	if _, err := fmt.Fprintf(runner.stdout, "$ %s\n", commandLine); err != nil {
+		return fmt.Errorf("write command trace: %w", err)
+	}
 
 	command := exec.CommandContext(ctx, name, arguments...)
 	command.Dir = directory

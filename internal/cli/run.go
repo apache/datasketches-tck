@@ -35,7 +35,9 @@ var errSnapshotsOutOfDate = errors.New("stable snapshots are out of date")
 
 func Run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	if err := run(ctx, args, stdout, stderr); err != nil {
-		fmt.Fprintf(stderr, "Error: %v\n", err)
+		if _, writeErr := fmt.Fprintf(stderr, "Error: %v\n", err); writeErr != nil {
+			return 1
+		}
 		return 1
 	}
 	return 0
@@ -43,11 +45,12 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 
 func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 || (len(args) == 1 && isHelp(args[0])) {
-		printUsage(stdout)
-		return nil
+		return printUsage(stdout)
 	}
 	if len(args) != 3 || args[0] != "snapshots" {
-		printUsage(stderr)
+		if err := printUsage(stderr); err != nil {
+			return fmt.Errorf("print usage: %w", err)
+		}
 		return errors.New("expected snapshots <check|update> <cpp|go|java|all>")
 	}
 
@@ -70,12 +73,16 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 
 	outOfDate := false
 	for _, language := range languages {
-		fmt.Fprintf(stdout, "--- %s %s snapshots ---\n", title(args[1]), language)
+		if _, err := fmt.Fprintf(stdout, "--- %s %s snapshots ---\n", title(args[1]), language); err != nil {
+			return fmt.Errorf("print snapshot heading: %w", err)
+		}
 		result, err := snapshots.Reconcile(ctx, root, language, mode, stdout, stderr)
 		if err != nil {
 			return err
 		}
-		printResult(stdout, root, mode, result)
+		if err := printResult(stdout, root, mode, result); err != nil {
+			return fmt.Errorf("print snapshot result: %w", err)
+		}
 		outOfDate = outOfDate || (mode == snapshots.ModeCheck && result.HasBlockingChanges())
 	}
 	if outOfDate {
@@ -84,11 +91,11 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	return nil
 }
 
-func printResult(output io.Writer, root string, mode snapshots.Mode, result snapshots.Result) {
+func printResult(output io.Writer, root string, mode snapshots.Mode, result snapshots.Result) error {
 	target := displayPath(root, result.Target)
 	if len(result.Changes) == 0 {
-		fmt.Fprintf(output, "%s is up to date.\n", target)
-		return
+		_, err := fmt.Fprintf(output, "%s is up to date.\n", target)
+		return err
 	}
 
 	counts := make(map[snapshots.ChangeStatus]int)
@@ -98,32 +105,39 @@ func printResult(output io.Writer, root string, mode snapshots.Mode, result snap
 		if change.Status == snapshots.ChangeModified && change.Stability == snapshots.Unstable {
 			unstableModified++
 		}
-		fmt.Fprintf(
+		if _, err := fmt.Fprintf(
 			output,
 			"%s %-8s %s (%s)\n",
 			change.Status,
 			change.Stability,
 			change.Path,
 			changeDetails(change),
-		)
+		); err != nil {
+			return err
+		}
 	}
 
-	fmt.Fprintf(
+	if _, err := fmt.Fprintf(
 		output,
 		"Summary: %d added, %d modified (%d unstable), %d deleted.\n",
 		counts[snapshots.ChangeAdded],
 		counts[snapshots.ChangeModified],
 		unstableModified,
 		counts[snapshots.ChangeDeleted],
-	)
+	); err != nil {
+		return err
+	}
 
 	switch {
 	case mode == snapshots.ModeUpdate:
-		fmt.Fprintf(output, "Updated %s.\n", target)
+		_, err := fmt.Fprintf(output, "Updated %s.\n", target)
+		return err
 	case result.HasBlockingChanges():
-		fmt.Fprintf(output, "%s has %d blocking change(s).\n", target, result.BlockingChangeCount())
+		_, err := fmt.Fprintf(output, "%s has %d blocking change(s).\n", target, result.BlockingChangeCount())
+		return err
 	default:
-		fmt.Fprintf(output, "Stable snapshots are current; %d unstable modification(s) are allowed.\n", unstableModified)
+		_, err := fmt.Fprintf(output, "Stable snapshots are current; %d unstable modification(s) are allowed.\n", unstableModified)
+		return err
 	}
 }
 
@@ -176,8 +190,9 @@ func displayPath(root, filename string) string {
 	return filepath.ToSlash(relative)
 }
 
-func printUsage(output io.Writer) {
-	fmt.Fprintln(output, "Usage: tck snapshots <check|update> <cpp|go|java|all>")
+func printUsage(output io.Writer) error {
+	_, err := fmt.Fprintln(output, "Usage: tck snapshots <check|update> <cpp|go|java|all>")
+	return err
 }
 
 func isHelp(argument string) bool {

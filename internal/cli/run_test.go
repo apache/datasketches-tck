@@ -19,6 +19,7 @@ package cli
 
 import (
 	"bytes"
+	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -51,7 +52,9 @@ func TestPrintResultIncludesDetailedFileChanges(t *testing.T) {
 	}
 
 	var output bytes.Buffer
-	printResult(&output, root, snapshots.ModeCheck, result)
+	if err := printResult(&output, root, snapshots.ModeCheck, result); err != nil {
+		t.Fatalf("print result: %v", err)
+	}
 	wantLines := []string{
 		"A stable   added.sk (16 B, sha256:bbbbbbbbbbbb)",
 		"M unstable modified.sk (12 B, sha256:aaaaaaaaaaaa -> 16 B, sha256:bbbbbbbbbbbb)",
@@ -80,10 +83,33 @@ func TestPrintResultAllowsOnlyUnstableModifications(t *testing.T) {
 	}
 
 	var output bytes.Buffer
-	printResult(&output, ".", snapshots.ModeCheck, result)
+	if err := printResult(&output, ".", snapshots.ModeCheck, result); err != nil {
+		t.Fatalf("print result: %v", err)
+	}
 	if !strings.Contains(output.String(), "Stable snapshots are current; 1 unstable modification(s) are allowed.\n") {
 		t.Fatalf("unexpected output:\n%s", output.String())
 	}
+}
+
+func TestRunReportsOutputFailure(t *testing.T) {
+	t.Parallel()
+
+	wantErr := errors.New("output failed")
+	var stderr bytes.Buffer
+	if code := Run(t.Context(), nil, errorWriter{err: wantErr}, &stderr); code != 1 {
+		t.Fatalf("exit code = %d, want 1", code)
+	}
+	if !strings.Contains(stderr.String(), wantErr.Error()) {
+		t.Fatalf("stderr does not contain %q:\n%s", wantErr, stderr.String())
+	}
+}
+
+type errorWriter struct {
+	err error
+}
+
+func (writer errorWriter) Write([]byte) (int, error) {
+	return 0, writer.err
 }
 
 func testMetadata(size int64, fill byte) snapshots.FileMetadata {
