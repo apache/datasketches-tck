@@ -17,7 +17,11 @@
 
 package snapshots
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
 
 func TestSnapshotStability(t *testing.T) {
 	t.Parallel()
@@ -48,9 +52,7 @@ func TestSnapshotStability(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			if got := test.stability(test.path); got != test.expected {
-				t.Fatalf("%s classified as %s, want %s", test.path, got, test.expected)
-			}
+			require.Equal(t, test.expected, test.stability(test.path), test.path)
 		})
 	}
 }

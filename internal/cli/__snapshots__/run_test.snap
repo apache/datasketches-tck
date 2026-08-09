@@ -1,0 +1,16 @@
+
+[TestPrintResultAllowsOnlyUnstableModifications - 1]
+M unstable probabilistic.sk (12 B, sha256:aaaaaaaaaaaa -> 12 B, sha256:bbbbbbbbbbbb)
+Summary: 0 added, 1 modified (1 unstable), 0 deleted.
+Stable snapshots are current; 1 unstable modification(s) are allowed.
+
+---
+
+[TestPrintResultIncludesDetailedFileChanges - 1]
+A stable   added.sk (16 B, sha256:bbbbbbbbbbbb)
+M unstable modified.sk (12 B, sha256:aaaaaaaaaaaa -> 16 B, sha256:bbbbbbbbbbbb)
+D stable   deleted.sk (12 B, sha256:aaaaaaaaaaaa)
+Summary: 1 added, 1 modified (1 unstable), 1 deleted.
+serialization/go/snapshots has 2 blocking change(s).
+
+---

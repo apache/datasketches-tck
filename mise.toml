@@ -25,3 +25,9 @@ description = "Run the repository-local DataSketches TCK CLI"
 dir = "{{ cwd }}"
 env = { TCK_REPOSITORY_ROOT = "{{ config_root }}" }
 run = 'go run "$MISE_PROJECT_ROOT/cmd/tck"'
+
+[tasks."test:update-snapshots"]
+description = "Update Go test snapshots"
+dir = "{{ config_root }}"
+env = { UPDATE_SNAPS = "always" }
+run = "go test -count=1 ./..."

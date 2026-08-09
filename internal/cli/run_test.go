@@ -21,10 +21,11 @@ import (
 	"bytes"
 	"errors"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/apache/datasketches-tck/internal/snapshots"
+	"github.com/gkampitakis/go-snaps/snaps"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPrintResultIncludesDetailedFileChanges(t *testing.T) {
@@ -52,21 +53,8 @@ func TestPrintResultIncludesDetailedFileChanges(t *testing.T) {
 	}
 
 	var output bytes.Buffer
-	if err := printResult(&output, root, snapshots.ModeCheck, result); err != nil {
-		t.Fatalf("print result: %v", err)
-	}
-	wantLines := []string{
-		"A stable   added.sk (16 B, sha256:bbbbbbbbbbbb)",
-		"M unstable modified.sk (12 B, sha256:aaaaaaaaaaaa -> 16 B, sha256:bbbbbbbbbbbb)",
-		"D stable   deleted.sk (12 B, sha256:aaaaaaaaaaaa)",
-		"Summary: 1 added, 1 modified (1 unstable), 1 deleted.",
-		"serialization/go/snapshots has 2 blocking change(s).",
-	}
-	for _, line := range wantLines {
-		if !strings.Contains(output.String(), line+"\n") {
-			t.Fatalf("output does not contain %q:\n%s", line, output.String())
-		}
-	}
+	require.NoError(t, printResult(&output, root, snapshots.ModeCheck, result))
+	snaps.WithConfig(snaps.Raw()).MatchSnapshot(t, output.String())
 }
 
 func TestPrintResultAllowsOnlyUnstableModifications(t *testing.T) {
@@ -83,12 +71,8 @@ func TestPrintResultAllowsOnlyUnstableModifications(t *testing.T) {
 	}
 
 	var output bytes.Buffer
-	if err := printResult(&output, ".", snapshots.ModeCheck, result); err != nil {
-		t.Fatalf("print result: %v", err)
-	}
-	if !strings.Contains(output.String(), "Stable snapshots are current; 1 unstable modification(s) are allowed.\n") {
-		t.Fatalf("unexpected output:\n%s", output.String())
-	}
+	require.NoError(t, printResult(&output, ".", snapshots.ModeCheck, result))
+	snaps.WithConfig(snaps.Raw()).MatchSnapshot(t, output.String())
 }
 
 func TestRunReportsOutputFailure(t *testing.T) {
@@ -96,12 +80,8 @@ func TestRunReportsOutputFailure(t *testing.T) {
 
 	wantErr := errors.New("output failed")
 	var stderr bytes.Buffer
-	if code := Run(t.Context(), nil, errorWriter{err: wantErr}, &stderr); code != 1 {
-		t.Fatalf("exit code = %d, want 1", code)
-	}
-	if !strings.Contains(stderr.String(), wantErr.Error()) {
-		t.Fatalf("stderr does not contain %q:\n%s", wantErr, stderr.String())
-	}
+	require.Equal(t, 1, Run(t.Context(), nil, errorWriter{err: wantErr}, &stderr))
+	require.Contains(t, stderr.String(), wantErr.Error())
 }
 
 type errorWriter struct {

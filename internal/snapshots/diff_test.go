@@ -18,9 +18,12 @@
 package snapshots
 
 import (
+	"crypto/sha256"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestCompareDirectoriesReportsDetailedChanges(t *testing.T) {
@@ -42,41 +45,30 @@ func TestCompareDirectoriesReportsDetailedChanges(t *testing.T) {
 		}
 		return Stable
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(changes) != 3 {
-		t.Fatalf("got %d changes, want 3: %#v", len(changes), changes)
-	}
 
-	if got := changes[0]; got.Status != ChangeAdded || got.Path != "added.sk" || got.After == nil || got.After.Size != 5 {
-		t.Fatalf("unexpected added change: %#v", got)
+	added := testFileMetadata("added")
+	deleted := testFileMetadata("deleted")
+	before := testFileMetadata("old")
+	after := testFileMetadata("new")
+	want := []Change{
+		{Status: ChangeAdded, Stability: Stable, Path: "added.sk", After: &added},
+		{Status: ChangeDeleted, Stability: Stable, Path: "deleted.sk", Before: &deleted},
+		{Status: ChangeModified, Stability: Unstable, Path: "modified.sk", Before: &before, After: &after},
 	}
-	if got := changes[1]; got.Status != ChangeDeleted || got.Path != "deleted.sk" || got.Before == nil || got.Before.Size != 7 {
-		t.Fatalf("unexpected deleted change: %#v", got)
-	}
-	if got := changes[2]; got.Status != ChangeModified || got.Path != "modified.sk" || got.Stability != Unstable {
-		t.Fatalf("unexpected modified change: %#v", got)
-	}
-	if changes[2].Before == nil || changes[2].After == nil || changes[2].Before.SHA256 == changes[2].After.SHA256 {
-		t.Fatalf("modified change lacks distinct hashes: %#v", changes[2])
-	}
+	require.NoError(t, err)
+	require.Equal(t, want, changes)
 }
 
 func TestResultOnlyAllowsUnstableModifications(t *testing.T) {
 	t.Parallel()
 
 	result := Result{Changes: []Change{{Status: ChangeModified, Stability: Unstable}}}
-	if result.HasBlockingChanges() {
-		t.Fatal("unstable modification should not block check mode")
-	}
+	require.False(t, result.HasBlockingChanges())
 
 	result.Changes = append(result.Changes, Change{Status: ChangeAdded, Stability: Unstable})
 	result.Changes = append(result.Changes, Change{Status: ChangeModified, Stability: Stable})
 	result.Changes = append(result.Changes, Change{Status: ChangeDeleted, Stability: Stable})
-	if got := result.BlockingChangeCount(); got != 3 {
-		t.Fatalf("got %d blocking changes, want 3", got)
-	}
+	require.Equal(t, 3, result.BlockingChangeCount())
 }
 
 func TestReplaceDirectoryReplacesTheExactFileSet(t *testing.T) {
@@ -90,33 +82,25 @@ func TestReplaceDirectoryReplacesTheExactFileSet(t *testing.T) {
 	writeTestFile(t, filepath.Join(generated, "modified.sk"), "new")
 	writeTestFile(t, filepath.Join(generated, "nested", "added.sk"), "added")
 
-	if err := replaceDirectory(target, generated); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, replaceDirectory(target, generated))
 	requireTestFile(t, filepath.Join(target, "modified.sk"), "new")
 	requireTestFile(t, filepath.Join(target, "nested", "added.sk"), "added")
-	if _, err := os.Stat(filepath.Join(target, "deleted.sk")); !os.IsNotExist(err) {
-		t.Fatalf("deleted file still exists or stat failed unexpectedly: %v", err)
-	}
+	require.NoFileExists(t, filepath.Join(target, "deleted.sk"))
 }
 
 func writeTestFile(t *testing.T, filename, content string) {
 	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(filename), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filename, []byte(content), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.MkdirAll(filepath.Dir(filename), 0o755))
+	require.NoError(t, os.WriteFile(filename, []byte(content), 0o644))
 }
 
 func requireTestFile(t *testing.T, filename, expected string) {
 	t.Helper()
 	content, err := os.ReadFile(filename)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(content) != expected {
-		t.Fatalf("%s contains %q, want %q", filename, content, expected)
-	}
+	require.NoError(t, err)
+	require.Equal(t, expected, string(content))
+}
+
+func testFileMetadata(content string) FileMetadata {
+	return FileMetadata{Size: int64(len(content)), SHA256: sha256.Sum256([]byte(content))}
 }
