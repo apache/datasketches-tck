@@ -12,32 +12,6 @@ The structure (or image) of a serialized sketch is independent of the language f
 
 This repository contains snapshots of serialized sketches, which a particular DataSketches implementation should be able to read. Snapshot generators are also included.
 
-### Snapshot generators
-
-The repository-local Go CLI checks out pinned DataSketches implementations and runs their own snapshot generation suites. [mise](https://mise.jdx.dev/) installs the required Go, CMake, Java, and Maven toolchains and exposes the CLI:
-
-```shell
-mise install
-mise run tck -- snapshots --help
-mise run tck -- snapshots check go
-mise run tck -- snapshots update go
-```
-
-Replace `go` with `cpp`, `java`, or `all`. Git is required for every generator. The C++ generator additionally requires CTest and a C++ compiler, while the Go generator requires Make.
-
-`check` leaves the repository unchanged. Its change table shows the stability class, check disposition, and before/after size and SHA-256 digest for each file. Added or deleted files and modifications to stable snapshots make the check fail. Modifications to known probabilistic snapshots are reported but allowed. `update` atomically replaces the selected snapshot directory with freshly generated files.
-
-The upstream repositories, exact commits, requirements, and generator implementations are registered together in `internal/snapshots/generator.go`. The stability rules reflect repeated generation at those commits and the project discussion about probabilistic sketches:
-
-| Source       | Snapshots allowed to vary                                                                                                        |
-|--------------|----------------------------------------------------------------------------------------------------------------------------------|
-| C++ and Java | Bloom filters; KLL and classic quantiles after compaction (`n >= 1000`); REQ after compaction (`n >= 100`); VarOpt sampling mode |
-| Go           | Bloom filters; REQ after compaction (`n >= 100`); reservoir and VarOpt sampling mode                                             |
-
-The pinned Go KLL generator enables its deterministic test offset, so its generated KLL files remain strictly checked. These rules do not claim that probabilistic snapshots are logically unchecked: the upstream generation suites validate their construction, while consuming DataSketches implementations remain responsible for compatibility assertions with algorithm-appropriate tolerances.
-
-Background: [central snapshot generation issue](https://github.com/apache/datasketches-rust/issues/10#issuecomment-3663796398), [cross-language testing discussion](https://github.com/apache/datasketches-rust/discussions/4#discussioncomment-15226056), [dev mailing-list inventory](https://www.mail-archive.com/dev%40datasketches.apache.org/msg04302.html), and [KLL non-determinism discussion](https://github.com/apache/datasketches-java/issues/693).
-
 ## Contribute
 
 Please visit the main [DataSketches website](https://datasketches.apache.org) for more information.
