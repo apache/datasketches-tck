@@ -80,7 +80,7 @@ func Reconcile(
 
 	generated := filepath.Join(workspace, "generated")
 	runner := commandRunner{stdout: stdout, stderr: stderr}
-	if err := generator.generate(ctx, workspace, generated, runner); err != nil {
+	if err := generator.run(ctx, workspace, generated, runner); err != nil {
 		return Result{}, fmt.Errorf("generate %s snapshots: %w", language, err)
 	}
 

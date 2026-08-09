@@ -27,7 +27,7 @@ Replace `go` with `cpp`, `java`, or `all`. Git is required for every generator. 
 
 `check` leaves the repository unchanged. Its change table shows the stability class, check disposition, and before/after size and SHA-256 digest for each file. Added or deleted files and modifications to stable snapshots make the check fail. Modifications to known probabilistic snapshots are reported but allowed. `update` atomically replaces the selected snapshot directory with freshly generated files.
 
-The upstream repositories and exact commits are pinned together in `internal/snapshots/revisions.go`. The stability rules reflect repeated generation at those commits and the project discussion about probabilistic sketches:
+The upstream repositories, exact commits, requirements, and generator implementations are registered together in `internal/snapshots/generator.go`. The stability rules reflect repeated generation at those commits and the project discussion about probabilistic sketches:
 
 | Source       | Snapshots allowed to vary                                                                                                        |
 |--------------|----------------------------------------------------------------------------------------------------------------------------------|

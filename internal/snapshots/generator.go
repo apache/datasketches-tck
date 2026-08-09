@@ -20,26 +20,44 @@ package snapshots
 import (
 	"context"
 	"io"
+	"path/filepath"
+	"sort"
 )
 
+type generationPaths struct {
+	workspace   string
+	source      string
+	destination string
+}
+
+type generateFunc func(context.Context, generationPaths, commandRunner) error
+
 type generator struct {
+	repository   string
+	commit       string
 	requirements []string
-	generate     func(context.Context, string, string, commandRunner) error
+	generate     generateFunc
 	stability    func(string) Stability
 }
 
 var generators = map[string]generator{
 	"cpp": {
+		repository:   "https://github.com/apache/datasketches-cpp.git",
+		commit:       "401423367055acdf7502e8ed3126730a08039d91",
 		requirements: []string{"git", "cmake", "ctest"},
 		generate:     generateCPP,
 		stability:    cppStability,
 	},
 	"go": {
+		repository:   "https://github.com/apache/datasketches-go.git",
+		commit:       "730c0ca31e00b8becf8b70591ae8ca73954912d0",
 		requirements: []string{"git", "go", "make"},
 		generate:     generateGo,
 		stability:    goStability,
 	},
 	"java": {
+		repository:   "https://github.com/apache/datasketches-java.git",
+		commit:       "f3b334b380feee9f928500de9adb6bbf763fc104",
 		requirements: []string{"git", "java", "mvn"},
 		generate:     generateJava,
 		stability:    javaStability,
@@ -47,7 +65,28 @@ var generators = map[string]generator{
 }
 
 func Languages() []string {
-	return []string{"cpp", "go", "java"}
+	languages := make([]string, 0, len(generators))
+	for language := range generators {
+		languages = append(languages, language)
+	}
+	sort.Strings(languages)
+	return languages
+}
+
+func (definition generator) run(
+	ctx context.Context,
+	workspace, destination string,
+	runner commandRunner,
+) error {
+	paths := generationPaths{
+		workspace:   workspace,
+		source:      filepath.Join(workspace, "source"),
+		destination: destination,
+	}
+	if err := cloneAtCommit(ctx, runner, definition.repository, definition.commit, paths.source); err != nil {
+		return err
+	}
+	return definition.generate(ctx, paths, runner)
 }
 
 type commandRunner struct {

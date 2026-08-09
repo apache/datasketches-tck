@@ -26,19 +26,18 @@ import (
 	"strings"
 )
 
-func generateJava(ctx context.Context, workspace, destination string, runner commandRunner) error {
-	source := filepath.Join(workspace, "source")
-	if err := cloneAtCommit(ctx, runner, javaRepository, javaCommit, source); err != nil {
-		return err
-	}
-
-	toolchains, err := writeMavenToolchains(workspace)
+func generateJava(
+	ctx context.Context,
+	paths generationPaths,
+	runner commandRunner,
+) error {
+	toolchains, err := writeMavenToolchains(paths.workspace)
 	if err != nil {
 		return err
 	}
 	if err := runner.run(
 		ctx,
-		source,
+		paths.source,
 		"mvn",
 		"--toolchains", toolchains,
 		"test",
@@ -47,8 +46,8 @@ func generateJava(ctx context.Context, workspace, destination string, runner com
 		return err
 	}
 
-	generated := filepath.Join(source, "serialization_test_data", "java_generated_files")
-	return collectSnapshots(generated, destination, func(name string) bool {
+	generated := filepath.Join(paths.source, "serialization_test_data", "java_generated_files")
+	return collectSnapshots(generated, paths.destination, func(name string) bool {
 		return strings.HasSuffix(name, "_java.sk")
 	})
 }

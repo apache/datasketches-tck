@@ -24,13 +24,12 @@ import (
 	"strings"
 )
 
-func generateCPP(ctx context.Context, workspace, destination string, runner commandRunner) error {
-	source := filepath.Join(workspace, "source")
-	if err := cloneAtCommit(ctx, runner, cppRepository, cppCommit, source); err != nil {
-		return err
-	}
-
-	build := filepath.Join(workspace, "build")
+func generateCPP(
+	ctx context.Context,
+	paths generationPaths,
+	runner commandRunner,
+) error {
+	build := filepath.Join(paths.workspace, "build")
 	if err := os.Mkdir(build, 0o755); err != nil {
 		return err
 	}
@@ -38,7 +37,7 @@ func generateCPP(ctx context.Context, workspace, destination string, runner comm
 		ctx,
 		"",
 		"cmake",
-		"-S", source,
+		"-S", paths.source,
 		"-B", build,
 		"-DGENERATE=true",
 		"-DCMAKE_BUILD_TYPE=Release",
@@ -52,7 +51,7 @@ func generateCPP(ctx context.Context, workspace, destination string, runner comm
 		return err
 	}
 
-	return collectSnapshots(build, destination, func(name string) bool {
+	return collectSnapshots(build, paths.destination, func(name string) bool {
 		return strings.HasSuffix(name, "_cpp.sk")
 	})
 }
