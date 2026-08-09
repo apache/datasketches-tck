@@ -15,25 +15,34 @@
  * limitations under the License.
  */
 
-package cli
+package main
 
 import (
-	"log"
-	"os"
+	"bytes"
 	"testing"
 
 	"github.com/gkampitakis/go-snaps/snaps"
+	"github.com/stretchr/testify/require"
 )
 
-func TestMain(m *testing.M) {
-	exitCode := m.Run()
-	dirty, err := snaps.Clean(m, snaps.CleanOpts{Sort: true})
-	if err != nil {
-		log.Printf("clean snapshots: %v", err)
-		os.Exit(1)
-	}
-	if dirty {
-		exitCode = 1
-	}
-	os.Exit(exitCode)
+func TestRunPrintsSnapshotsHelp(t *testing.T) {
+	t.Parallel()
+
+	var output bytes.Buffer
+	var stderr bytes.Buffer
+	require.Equal(t, 0, run(t.Context(), []string{"snapshots"}, &output, &stderr))
+	require.Empty(t, stderr.String())
+	snaps.WithConfig(snaps.Raw()).MatchSnapshot(t, output.String())
+}
+
+func TestRunRejectsUnsupportedLanguage(t *testing.T) {
+	t.Parallel()
+
+	var output bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := run(t.Context(), []string{"snapshots", "check", "python"}, &output, &stderr)
+
+	require.Equal(t, 1, exitCode)
+	require.Empty(t, output.String())
+	require.Contains(t, stderr.String(), `invalid argument "python" for "tck snapshots check"`)
 }

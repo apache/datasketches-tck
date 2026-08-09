@@ -18,15 +18,22 @@
 package main
 
 import (
-	"context"
+	"log"
 	"os"
-	"os/signal"
-	"syscall"
+	"testing"
+
+	"github.com/gkampitakis/go-snaps/snaps"
 )
 
-func main() {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	code := run(ctx, os.Args[1:], os.Stdout, os.Stderr)
-	stop()
-	os.Exit(code)
+func TestMain(m *testing.M) {
+	exitCode := m.Run()
+	dirty, err := snaps.Clean(m, snaps.CleanOpts{Sort: true})
+	if err != nil {
+		log.Printf("clean snapshots: %v", err)
+		os.Exit(1)
+	}
+	if dirty {
+		exitCode = 1
+	}
+	os.Exit(exitCode)
 }

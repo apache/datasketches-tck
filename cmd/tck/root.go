@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package cli
+package main
 
 import (
 	"context"
@@ -25,7 +25,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func Run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
+func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	command := newRootCommand()
 	command.SetArgs(args)
 	command.SetOut(stdout)

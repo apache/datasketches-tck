@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package cli
+package main
 
 import (
 	"bytes"
@@ -72,28 +72,6 @@ func TestPrintResultAllowsOnlyUnstableModifications(t *testing.T) {
 	var output bytes.Buffer
 	require.NoError(t, printResult(&output, ".", snapshots.ModeCheck, result))
 	snaps.WithConfig(snaps.Raw()).MatchSnapshot(t, output.String())
-}
-
-func TestRunPrintsSnapshotsHelp(t *testing.T) {
-	t.Parallel()
-
-	var output bytes.Buffer
-	var stderr bytes.Buffer
-	require.Equal(t, 0, Run(t.Context(), []string{"snapshots"}, &output, &stderr))
-	require.Empty(t, stderr.String())
-	snaps.WithConfig(snaps.Raw()).MatchSnapshot(t, output.String())
-}
-
-func TestRunRejectsUnsupportedLanguage(t *testing.T) {
-	t.Parallel()
-
-	var output bytes.Buffer
-	var stderr bytes.Buffer
-	exitCode := Run(t.Context(), []string{"snapshots", "check", "python"}, &output, &stderr)
-
-	require.Equal(t, 1, exitCode)
-	require.Empty(t, output.String())
-	require.Contains(t, stderr.String(), `invalid argument "python" for "tck snapshots check"`)
 }
 
 func testMetadata(size int64, fill byte) snapshots.FileMetadata {

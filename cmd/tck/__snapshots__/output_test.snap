@@ -24,21 +24,3 @@ Summary: 1 added · 1 modified (1 probabilistic) · 1 deleted
 ✗ serialization/go/snapshots has 2 blocking changes.
 
 ---
-
-[TestRunPrintsSnapshotsHelp - 1]
-Generate, compare, and update serialization snapshots
-
-Usage:
-  tck snapshots [flags]
-  tck snapshots [command]
-
-Available Commands:
-  check       Check the snapshot set and stable snapshot contents
-  update      Replace committed snapshots with newly generated snapshots
-
-Flags:
-  -h, --help   help for snapshots
-
-Use "tck snapshots [command] --help" for more information about a command.
-
----
