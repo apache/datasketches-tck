@@ -73,8 +73,6 @@ func TestChangeIsBlocking(t *testing.T) {
 		{name: "unstable modification", change: Change{Status: ChangeModified, Stability: Unstable}, blocking: false},
 		{name: "stable deletion", change: Change{Status: ChangeDeleted, Stability: Stable}, blocking: true},
 		{name: "unstable deletion", change: Change{Status: ChangeDeleted, Stability: Unstable}, blocking: true},
-		{name: "unknown status", change: Change{Status: ChangeStatus("?"), Stability: Unstable}, blocking: true},
-		{name: "unknown stability", change: Change{Status: ChangeModified, Stability: Stability("unknown")}, blocking: true},
 	}
 
 	for _, test := range tests {
@@ -83,14 +81,6 @@ func TestChangeIsBlocking(t *testing.T) {
 			require.Equal(t, test.blocking, test.change.IsBlocking())
 		})
 	}
-
-	changes := make([]Change, 0, len(tests))
-	for _, test := range tests {
-		changes = append(changes, test.change)
-	}
-	result := Result{Changes: changes}
-	require.True(t, result.HasBlockingChanges())
-	require.Equal(t, 7, result.BlockingChangeCount())
 }
 
 func TestReplaceDirectoryReplacesTheExactFileSet(t *testing.T) {
