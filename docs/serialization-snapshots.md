@@ -27,32 +27,9 @@ repository = "https://github.com/apache/datasketches-go.git"
 commit = "730c0ca31e00b8becf8b70591ae8ca73954912d0"
 ```
 
-## Set up the toolchain
-
-Install [mise](https://mise.jdx.dev/), then install the pinned toolchain and inspect the available snapshot commands:
-
-```shell
-mise install
-mise run tck -- snapshots --help
-```
-
-Mise supplies Go, CMake and CTest, Java, and Maven. Git is required for every source language, a C++ compiler is required for C++, and Make is required for Go.
-
-Check mode accepts `cpp`, `go`, `java`, or `all`. The synchronization and update commands below have narrower inputs.
-
-## Synchronize configured snapshots
-
-Regenerate every snapshot directory from the repositories and commits currently recorded in `config.toml`:
-
-```shell
-mise run tck -- snapshots sync
-```
-
-Sync may change the committed snapshot directories, but it never changes `config.toml`.
-
 ## Update one source
 
-To adopt a different upstream branch, tag, or commit, specify one source language and revision:
+With the [toolchain installed](#set-up-the-toolchain), adopt a different upstream branch, tag, or commit by specifying one source language and revision:
 
 ```shell
 mise run tck -- snapshots update go main
@@ -91,6 +68,29 @@ mise run tck -- snapshots check go
 Check mode does not modify the repository. It fails for added or deleted files and for content changes to deterministic snapshots. It reports, but allows, content changes to existing snapshots classified as probabilistic by `internal/snapshots/stability.go`.
 
 This command answers whether the repository matches its pin; it does not determine whether the pin is the latest upstream commit.
+
+## Synchronize configured snapshots
+
+Regenerate every snapshot directory from the repositories and commits currently recorded in `config.toml`:
+
+```shell
+mise run tck -- snapshots sync
+```
+
+Sync may change the committed snapshot directories, but it never changes `config.toml`.
+
+## Set up the toolchain
+
+Install [mise](https://mise.jdx.dev/), then install the pinned toolchain and inspect the available snapshot commands:
+
+```shell
+mise install
+mise run tck -- snapshots --help
+```
+
+Mise supplies Go, CMake and CTest, Java, and Maven. Git is required for every source language, a C++ compiler is required for C++, and Make is required for Go.
+
+Check mode accepts `cpp`, `go`, `java`, or `all`. Synchronization takes no arguments, while update requires one source language and revision.
 
 ## Use the corpus from an implementation
 
