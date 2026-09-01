@@ -12,6 +12,8 @@ The structure (or image) of a serialized sketch is independent of the language f
 
 This repository contains snapshots of serialized sketches, which a particular DataSketches implementation should be able to read. Snapshot generators are also included.
 
+See [Serialization snapshots](docs/serialization-snapshots.md) for the repository design, the snapshot generation commands, and the maintainer workflow for updating the corpus from an upstream DataSketches implementation.
+
 ## Contribute
 
 Please visit the main [DataSketches website](https://datasketches.apache.org) for more information.
