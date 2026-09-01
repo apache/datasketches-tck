@@ -51,19 +51,36 @@ func newSnapshotsCommand() *cobra.Command {
 func newSnapshotReconcileCommand(mode snapshots.Mode) *cobra.Command {
 	verb := string(mode)
 	validLanguages := append(snapshots.Languages(), "all")
-	return &cobra.Command{
+	var revision string
+	command := &cobra.Command{
 		Use:       verb + " <cpp|go|java|all>",
 		Short:     reconcileDescription(mode),
 		Long:      reconcileDetails(mode),
 		Args:      cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),
 		ValidArgs: validLanguages,
 		RunE: func(command *cobra.Command, args []string) error {
-			return reconcileSnapshots(command, mode, args[0])
+			return reconcileSnapshots(command, mode, args[0], revision)
 		},
 	}
+	if mode == snapshots.ModeUpdate {
+		command.Flags().StringVar(
+			&revision,
+			"revision",
+			"",
+			"upstream commit, branch, or tag to adopt",
+		)
+	}
+	return command
 }
 
-func reconcileSnapshots(command *cobra.Command, mode snapshots.Mode, requestedLanguage string) error {
+func reconcileSnapshots(
+	command *cobra.Command,
+	mode snapshots.Mode,
+	requestedLanguage, requestedRevision string,
+) error {
+	if requestedLanguage == "all" && requestedRevision != "" {
+		return fmt.Errorf("--revision cannot be used with all; update each language separately")
+	}
 	languages := []string{requestedLanguage}
 	if requestedLanguage == "all" {
 		languages = snapshots.Languages()
@@ -95,6 +112,7 @@ func reconcileSnapshots(command *cobra.Command, mode snapshots.Mode, requestedLa
 			root,
 			language,
 			mode,
+			requestedRevision,
 			command.OutOrStdout(),
 			command.ErrOrStderr(),
 		)
@@ -128,7 +146,7 @@ func reconcileDetails(mode snapshots.Mode) string {
 	case snapshots.ModeCheck:
 		return "Generate snapshots and verify that the file set and stable contents match. Content changes to existing probabilistic snapshots are reported but do not fail the check."
 	case snapshots.ModeUpdate:
-		return "Generate snapshots and atomically replace the selected committed snapshot directory with the complete generated file set."
+		return "Generate snapshots and atomically replace the selected committed snapshot directory with the complete generated file set. Pass --revision to adopt an upstream commit, branch, or tag and record its resolved commit ID."
 	default:
 		panic(fmt.Sprintf("unsupported snapshot mode %q", mode))
 	}
