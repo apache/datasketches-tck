@@ -34,18 +34,6 @@ Mise supplies Go, CMake and CTest, Java, and Maven. Git is required for every so
 
 Commands accept `cpp`, `go`, `java`, or `all` as the source language.
 
-## Check the pinned corpus
-
-Use check mode to regenerate snapshots from the currently pinned commit and compare them with the committed corpus:
-
-```shell
-mise run tck -- snapshots check go
-```
-
-Check mode does not modify the repository. It fails for added or deleted files and for content changes to deterministic snapshots. It reports, but allows, content changes to existing snapshots classified as probabilistic by `internal/snapshots/stability.go`.
-
-This command answers whether the repository matches its pin; it does not determine whether the pin is the latest upstream commit.
-
 ## Update snapshots from upstream
 
 Updating the corpus is an intentional maintainer operation because selecting an upstream revision and accepting compatibility changes require review. There is no GitHub Actions workflow that discovers newer revisions or opens snapshot update pull requests.
@@ -82,6 +70,18 @@ To update one source language:
    A second generation may report allowed modifications for known probabilistic snapshots. The file set and deterministic contents must reproduce.
 
 Use `all` instead of a language only when intentionally refreshing every source implementation. Updating languages separately usually produces smaller, easier-to-review pull requests.
+
+## Check the pinned corpus
+
+Use check mode to regenerate snapshots from the currently pinned commit and compare them with the committed corpus:
+
+```shell
+mise run tck -- snapshots check go
+```
+
+Check mode does not modify the repository. It fails for added or deleted files and for content changes to deterministic snapshots. It reports, but allows, content changes to existing snapshots classified as probabilistic by `internal/snapshots/stability.go`.
+
+This command answers whether the repository matches its pin; it does not determine whether the pin is the latest upstream commit.
 
 ## Use the corpus from an implementation
 
