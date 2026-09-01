@@ -88,6 +88,9 @@ func printResult(output io.Writer, root string, mode snapshots.Mode, result snap
 	case mode == snapshots.ModeUpdate:
 		_, err := fmt.Fprintf(output, "✓ Updated %s.\n", target)
 		return err
+	case mode == snapshots.ModeSync:
+		_, err := fmt.Fprintf(output, "✓ Synced %s.\n", target)
+		return err
 	case result.HasBlockingChanges():
 		count := result.BlockingChangeCount()
 		_, err := fmt.Fprintf(output, "✗ %s has %d blocking %s.\n", target, count, plural(count, "change", "changes"))

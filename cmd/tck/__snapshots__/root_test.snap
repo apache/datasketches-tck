@@ -8,7 +8,8 @@ Usage:
 
 Available Commands:
   check       Check the snapshot set and stable snapshot contents
-  update      Replace committed snapshots with newly generated snapshots
+  sync        Synchronize snapshots from config.toml
+  update      Adopt one upstream revision and update its snapshots
 
 Flags:
   -h, --help   help for snapshots

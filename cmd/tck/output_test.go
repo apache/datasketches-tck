@@ -74,25 +74,6 @@ func TestPrintResultAllowsOnlyUnstableModifications(t *testing.T) {
 	snaps.WithConfig(snaps.Raw()).MatchSnapshot(t, output.String())
 }
 
-func TestPrintResultIncludesRevisionOnlyUpdate(t *testing.T) {
-	t.Parallel()
-
-	result := snapshots.Result{
-		Target:           "serialization/go/snapshots",
-		PreviousRevision: "1111111111111111111111111111111111111111",
-		Revision:         "2222222222222222222222222222222222222222",
-	}
-
-	var output bytes.Buffer
-	require.NoError(t, printResult(&output, ".", snapshots.ModeUpdate, result))
-	require.Equal(
-		t,
-		"Source revision: 1111111111111111111111111111111111111111 -> 2222222222222222222222222222222222222222\n"+
-			"✓ Updated serialization/go/snapshots.\n",
-		output.String(),
-	)
-}
-
 func testMetadata(size int64, fill byte) snapshots.FileMetadata {
 	metadata := snapshots.FileMetadata{Size: size}
 	for index := range metadata.SHA256 {

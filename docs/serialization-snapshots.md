@@ -19,7 +19,13 @@
 
 The serialization corpus is a compatibility boundary between DataSketches implementations. Each directory under `serialization/<language>/snapshots` contains sketches produced by one implementation and intended to be read and validated by the others.
 
-This repository generates snapshots from the exact upstream commits recorded in `snapshot-revisions.toml` instead of following the latest branch. Pinning makes a checkout reproducible and ensures that changes to the compatibility corpus receive normal code review.
+This repository generates snapshots from the upstream sources configured in `config.toml` instead of following the latest branch. Each source records its repository and exact commit so a checkout remains reproducible.
+
+```toml
+[snapshot.go]
+repository = "https://github.com/apache/datasketches-go.git"
+commit = "730c0ca31e00b8becf8b70591ae8ca73954912d0"
+```
 
 ## Set up the toolchain
 
@@ -32,27 +38,35 @@ mise run tck -- snapshots --help
 
 Mise supplies Go, CMake and CTest, Java, and Maven. Git is required for every source language, a C++ compiler is required for C++, and Make is required for Go.
 
-Commands accept `cpp`, `go`, `java`, or `all` as the source language.
+Check mode accepts `cpp`, `go`, `java`, or `all`. The synchronization and update commands below have narrower inputs.
 
-## Update snapshots from upstream
+## Synchronize configured snapshots
 
-Updating the corpus is an intentional maintainer operation because selecting an upstream revision and accepting compatibility changes require review. There is no GitHub Actions workflow that discovers newer revisions or opens snapshot update pull requests.
-
-To update one source language, pass the upstream branch, tag, or commit to adopt:
+Regenerate every snapshot directory from the repositories and commits currently recorded in `config.toml`:
 
 ```shell
-mise run tck -- snapshots update go --revision main
+mise run tck -- snapshots sync
 ```
 
-The command resolves the supplied ref to an exact commit ID, generates the complete snapshot directory from that commit, and updates both `snapshot-revisions.toml` and `serialization/go/snapshots`. Generation happens before either file set is changed, so a generation failure leaves the repository untouched.
+Sync may change the committed snapshot directories, but it never changes `config.toml`.
 
-Choose a ref whose generator represents the compatibility behavior being adopted. If the upstream build or output layout changed, update the corresponding adapter in `internal/snapshots/<language>.go` before running the command.
+## Update one source
+
+To adopt a different upstream branch, tag, or commit, specify one source language and revision:
+
+```shell
+mise run tck -- snapshots update go main
+```
+
+The command resolves the supplied revision to an exact commit ID, writes it to `[snapshot.go]` in `config.toml`, and regenerates `serialization/go/snapshots`. Generation happens before either file set is changed, so a generation failure leaves the repository untouched.
+
+Updates intentionally handle one source at a time so each upstream change can be reviewed independently. If the upstream build or output layout changed, update the corresponding adapter in `internal/snapshots/<language>.go` before running the command.
 
 Review the resolved pin and corpus together:
 
 ```shell
 git diff --stat
-git diff -- snapshot-revisions.toml serialization/go/snapshots
+git diff -- config.toml serialization/go/snapshots
 ```
 
 Added and deleted files change the set of compatibility cases. Unexpected changes to deterministic files should be understood from the upstream change before they are accepted.
@@ -65,10 +79,6 @@ mise run check
 ```
 
 A second generation may report allowed modifications for known probabilistic snapshots. The file set and deterministic contents must reproduce.
-
-Because one revision identifies one upstream repository, `--revision` must target a single language. Use `all` without `--revision` only to regenerate every source implementation from its current pin.
-
-To regenerate snapshots from the current pin without changing it, omit `--revision`.
 
 ## Check the pinned corpus
 
@@ -104,6 +114,6 @@ Snapshot generation is kept out of the required workflow because it clones and b
 
 ## Implementation notes
 
-For each requested language, the `tck` command reads the repository from `internal/snapshots/generator.go` and the commit from `snapshot-revisions.toml`, checks out that revision in a temporary workspace, and invokes the source-specific adapter in `internal/snapshots/<language>.go`. It then compares the generated output with `serialization/<language>/snapshots`; update mode atomically replaces that directory.
+For each requested language, the `tck` command reads the repository and commit from `config.toml`, checks out that revision in a temporary workspace, and invokes the source-specific adapter in `internal/snapshots/<language>.go`. It then compares the generated output with `serialization/<language>/snapshots`.
 
 The command-line interface and change report live in `cmd/tck`. Reconciliation and file comparison live in `internal/snapshots`, where `stability.go` classifies deterministic and known probabilistic outputs.

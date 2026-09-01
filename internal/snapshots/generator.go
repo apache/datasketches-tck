@@ -33,7 +33,6 @@ type generationPaths struct {
 type generateFunc func(context.Context, generationPaths, commandRunner) error
 
 type generator struct {
-	repository   string
 	requirements []string
 	generate     generateFunc
 	stability    func(string) Stability
@@ -41,19 +40,16 @@ type generator struct {
 
 var generators = map[string]generator{
 	"cpp": {
-		repository:   "https://github.com/apache/datasketches-cpp.git",
 		requirements: []string{"git", "cmake", "ctest"},
 		generate:     generateCPP,
 		stability:    cppStability,
 	},
 	"go": {
-		repository:   "https://github.com/apache/datasketches-go.git",
 		requirements: []string{"git", "go", "make"},
 		generate:     generateGo,
 		stability:    goStability,
 	},
 	"java": {
-		repository:   "https://github.com/apache/datasketches-java.git",
 		requirements: []string{"git", "java", "mvn"},
 		generate:     generateJava,
 		stability:    javaStability,
@@ -71,7 +67,7 @@ func Languages() []string {
 
 func (definition generator) run(
 	ctx context.Context,
-	workspace, destination, revision string,
+	workspace, destination, repository, revision string,
 	runner commandRunner,
 ) (string, error) {
 	paths := generationPaths{
@@ -79,7 +75,7 @@ func (definition generator) run(
 		source:      filepath.Join(workspace, "source"),
 		destination: destination,
 	}
-	resolvedRevision, err := cloneAtRevision(ctx, runner, definition.repository, revision, paths.source)
+	resolvedRevision, err := cloneAtRevision(ctx, runner, repository, revision, paths.source)
 	if err != nil {
 		return "", err
 	}
