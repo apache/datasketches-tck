@@ -32,6 +32,13 @@ import (
 func printResult(output io.Writer, root string, mode snapshots.Mode, result snapshots.Result) error {
 	target := displayPath(root, result.Target)
 	if len(result.Changes) == 0 {
+		if result.RevisionChanged() {
+			if err := printRevisionChange(output, result); err != nil {
+				return err
+			}
+			_, err := fmt.Fprintf(output, "✓ Updated %s.\n", target)
+			return err
+		}
 		_, err := fmt.Fprintf(output, "✓ %s is up to date.\n", target)
 		return err
 	}
@@ -71,10 +78,18 @@ func printResult(output io.Writer, root string, mode snapshots.Mode, result snap
 	); err != nil {
 		return err
 	}
+	if result.RevisionChanged() {
+		if err := printRevisionChange(output, result); err != nil {
+			return err
+		}
+	}
 
 	switch {
 	case mode == snapshots.ModeUpdate:
 		_, err := fmt.Fprintf(output, "✓ Updated %s.\n", target)
+		return err
+	case mode == snapshots.ModeSync:
+		_, err := fmt.Fprintf(output, "✓ Synced %s.\n", target)
 		return err
 	case result.HasBlockingChanges():
 		count := result.BlockingChangeCount()
@@ -89,6 +104,16 @@ func printResult(output io.Writer, root string, mode snapshots.Mode, result snap
 		)
 		return err
 	}
+}
+
+func printRevisionChange(output io.Writer, result snapshots.Result) error {
+	_, err := fmt.Fprintf(
+		output,
+		"Source revision: %s -> %s\n",
+		result.PreviousRevision,
+		result.Revision,
+	)
+	return err
 }
 
 func changeDetails(change snapshots.Change) string {

@@ -42,33 +42,72 @@ func newSnapshotsCommand() *cobra.Command {
 		},
 	}
 	command.AddCommand(
-		newSnapshotReconcileCommand(snapshots.ModeCheck),
-		newSnapshotReconcileCommand(snapshots.ModeUpdate),
+		newSnapshotCheckCommand(),
+		newSnapshotSyncCommand(),
+		newSnapshotUpdateCommand(),
 	)
 	return command
 }
 
-func newSnapshotReconcileCommand(mode snapshots.Mode) *cobra.Command {
-	verb := string(mode)
+func newSnapshotCheckCommand() *cobra.Command {
 	validLanguages := append(snapshots.Languages(), "all")
 	return &cobra.Command{
-		Use:       verb + " <cpp|go|java|all>",
-		Short:     reconcileDescription(mode),
-		Long:      reconcileDetails(mode),
+		Use:       "check <cpp|go|java|all>",
+		Short:     reconcileDescription(snapshots.ModeCheck),
+		Long:      reconcileDetails(snapshots.ModeCheck),
 		Args:      cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),
 		ValidArgs: validLanguages,
 		RunE: func(command *cobra.Command, args []string) error {
-			return reconcileSnapshots(command, mode, args[0])
+			languages := []string{args[0]}
+			if args[0] == "all" {
+				languages = snapshots.Languages()
+			}
+			return reconcileSnapshots(command, snapshots.ModeCheck, languages, "")
 		},
 	}
 }
 
-func reconcileSnapshots(command *cobra.Command, mode snapshots.Mode, requestedLanguage string) error {
-	languages := []string{requestedLanguage}
-	if requestedLanguage == "all" {
-		languages = snapshots.Languages()
+func newSnapshotSyncCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "sync",
+		Short: reconcileDescription(snapshots.ModeSync),
+		Long:  reconcileDetails(snapshots.ModeSync),
+		Args:  cobra.NoArgs,
+		RunE: func(command *cobra.Command, _ []string) error {
+			return reconcileSnapshots(command, snapshots.ModeSync, snapshots.Languages(), "")
+		},
 	}
+}
 
+func newSnapshotUpdateCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "update <cpp|go|java> <revision>",
+		Short: reconcileDescription(snapshots.ModeUpdate),
+		Long:  reconcileDetails(snapshots.ModeUpdate),
+		Args: func(command *cobra.Command, args []string) error {
+			if err := cobra.ExactArgs(2)(command, args); err != nil {
+				return err
+			}
+			for _, language := range snapshots.Languages() {
+				if args[0] == language {
+					return nil
+				}
+			}
+			return fmt.Errorf("unsupported snapshot language %q", args[0])
+		},
+		ValidArgs: snapshots.Languages(),
+		RunE: func(command *cobra.Command, args []string) error {
+			return reconcileSnapshots(command, snapshots.ModeUpdate, []string{args[0]}, args[1])
+		},
+	}
+}
+
+func reconcileSnapshots(
+	command *cobra.Command,
+	mode snapshots.Mode,
+	languages []string,
+	requestedRevision string,
+) error {
 	root, err := repositoryRoot(command.Context())
 	if err != nil {
 		return err
@@ -95,6 +134,7 @@ func reconcileSnapshots(command *cobra.Command, mode snapshots.Mode, requestedLa
 			root,
 			language,
 			mode,
+			requestedRevision,
 			command.OutOrStdout(),
 			command.ErrOrStderr(),
 		)
@@ -116,8 +156,10 @@ func reconcileDescription(mode snapshots.Mode) string {
 	switch mode {
 	case snapshots.ModeCheck:
 		return "Check the snapshot set and stable snapshot contents"
+	case snapshots.ModeSync:
+		return "Synchronize snapshots from config.toml"
 	case snapshots.ModeUpdate:
-		return "Replace committed snapshots with newly generated snapshots"
+		return "Adopt one upstream revision and update its snapshots"
 	default:
 		panic(fmt.Sprintf("unsupported snapshot mode %q", mode))
 	}
@@ -127,8 +169,10 @@ func reconcileDetails(mode snapshots.Mode) string {
 	switch mode {
 	case snapshots.ModeCheck:
 		return "Generate snapshots and verify that the file set and stable contents match. Content changes to existing probabilistic snapshots are reported but do not fail the check."
+	case snapshots.ModeSync:
+		return "Regenerate all snapshot directories from the repositories and commits in config.toml without changing the config."
 	case snapshots.ModeUpdate:
-		return "Generate snapshots and atomically replace the selected committed snapshot directory with the complete generated file set."
+		return "Resolve an upstream commit, branch, or tag, record its exact commit ID in config.toml, and regenerate that source's snapshots."
 	default:
 		panic(fmt.Sprintf("unsupported snapshot mode %q", mode))
 	}
@@ -138,6 +182,8 @@ func modeHeading(mode snapshots.Mode) string {
 	switch mode {
 	case snapshots.ModeCheck:
 		return "Check"
+	case snapshots.ModeSync:
+		return "Sync"
 	case snapshots.ModeUpdate:
 		return "Update"
 	default:

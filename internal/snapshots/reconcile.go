@@ -31,12 +31,19 @@ type Mode string
 
 const (
 	ModeCheck  Mode = "check"
+	ModeSync   Mode = "sync"
 	ModeUpdate Mode = "update"
 )
 
 type Result struct {
-	Target  string
-	Changes []Change
+	Target           string
+	PreviousRevision string
+	Revision         string
+	Changes          []Change
+}
+
+func (result Result) RevisionChanged() bool {
+	return result.PreviousRevision != result.Revision
 }
 
 func (result Result) HasBlockingChanges() bool {
@@ -57,14 +64,33 @@ func Reconcile(
 	ctx context.Context,
 	repositoryRoot, language string,
 	mode Mode,
+	requestedRevision string,
 	stdout, stderr io.Writer,
 ) (Result, error) {
-	if mode != ModeCheck && mode != ModeUpdate {
+	if mode != ModeCheck && mode != ModeSync && mode != ModeUpdate {
 		return Result{}, fmt.Errorf("unsupported reconciliation mode %q", mode)
 	}
 	generator, found := generators[language]
 	if !found {
 		return Result{}, fmt.Errorf("unsupported snapshot language %q", language)
+	}
+	if mode == ModeUpdate && requestedRevision == "" {
+		return Result{}, fmt.Errorf("a source revision is required in update mode")
+	}
+	if mode != ModeUpdate && requestedRevision != "" {
+		return Result{}, fmt.Errorf("a source revision can only be selected in update mode")
+	}
+	config, originalConfig, err := loadConfig(repositoryRoot)
+	if err != nil {
+		return Result{}, err
+	}
+	source, found := config.source(language)
+	if !found {
+		return Result{}, fmt.Errorf("snapshot source for unsupported language %q", language)
+	}
+	sourceRevision := source.Commit
+	if requestedRevision != "" {
+		sourceRevision = requestedRevision
 	}
 	for _, requirement := range generator.requirements {
 		if _, err := exec.LookPath(requirement); err != nil {
@@ -80,7 +106,15 @@ func Reconcile(
 
 	generated := filepath.Join(workspace, "generated")
 	runner := commandRunner{stdout: stdout, stderr: stderr}
-	if err := generator.run(ctx, workspace, generated, runner); err != nil {
+	resolvedRevision, err := generator.run(
+		ctx,
+		workspace,
+		generated,
+		source.Repository,
+		sourceRevision,
+		runner,
+	)
+	if err != nil {
 		return Result{}, fmt.Errorf("generate %s snapshots: %w", language, err)
 	}
 
@@ -90,9 +124,49 @@ func Reconcile(
 		return Result{}, err
 	}
 
-	result := Result{Target: target, Changes: changes}
-	if mode == ModeUpdate && len(changes) > 0 {
+	result := Result{
+		Target:           target,
+		PreviousRevision: source.Commit,
+		Revision:         resolvedRevision,
+		Changes:          changes,
+	}
+	if mode == ModeCheck {
+		return result, nil
+	}
+	if mode == ModeSync {
+		if len(changes) > 0 {
+			if err := replaceDirectory(target, generated); err != nil {
+				return Result{}, err
+			}
+		}
+		return result, nil
+	}
+
+	revisionChanged := result.RevisionChanged()
+	if revisionChanged {
+		if err := config.setCommit(language, resolvedRevision); err != nil {
+			return Result{}, err
+		}
+		updatedConfig, err := encodeConfig(config)
+		if err != nil {
+			return Result{}, err
+		}
+		if err := replaceConfigFile(repositoryRoot, updatedConfig); err != nil {
+			return Result{}, err
+		}
+	}
+	if len(changes) > 0 {
 		if err := replaceDirectory(target, generated); err != nil {
+			if !revisionChanged {
+				return Result{}, err
+			}
+			if restoreErr := replaceConfigFile(repositoryRoot, originalConfig); restoreErr != nil {
+				return Result{}, fmt.Errorf(
+					"%w; restoring the previous config also failed: %v",
+					err,
+					restoreErr,
+				)
+			}
 			return Result{}, err
 		}
 	}
