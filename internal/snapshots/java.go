@@ -41,7 +41,7 @@ func generateJava(
 		"mvn",
 		"--toolchains", toolchains,
 		"test",
-		"-P", "generate-java-files",
+		"-P", "generate_java_files",
 	); err != nil {
 		return err
 	}
