@@ -19,7 +19,7 @@ commit = "fe0261aa043c1d3af9a92a62fa286caabbf6fa84"
 
 [snapshot.go]
 repository = "https://github.com/apache/datasketches-go.git"
-commit = "1db03b883b25462b67c42ccd2868039746fd0532"
+commit = "ad31bdd478173b73b719cc8d5278af7d9e6b5eca"
 
 [snapshot.java]
 repository = "https://github.com/apache/datasketches-java.git"
