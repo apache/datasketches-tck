@@ -15,7 +15,7 @@
 
 [snapshot.cpp]
 repository = "https://github.com/apache/datasketches-cpp.git"
-commit = "fe0261aa043c1d3af9a92a62fa286caabbf6fa84"
+commit = "16d4ea6f2013f7fb005eb53ea2b88bf5da937652"
 
 [snapshot.go]
 repository = "https://github.com/apache/datasketches-go.git"
