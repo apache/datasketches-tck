@@ -55,3 +55,7 @@ share/python-wheels/
 *.egg-info/
 *.egg
 MANIFEST
+
+# Serialized sketch snapshots are this repository's product and must be tracked,
+# even when a contributor's global gitignore excludes *.sk files.
+!*.sk
