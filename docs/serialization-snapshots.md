@@ -17,7 +17,9 @@
 
 # Serialization snapshots
 
-The serialization corpus is a compatibility boundary between DataSketches implementations. Each directory under `serialization/<language>/snapshots` contains sketches produced by one implementation and intended to be read and validated by the others.
+The serialization corpus is a compatibility boundary between DataSketches implementations. Each directory `serialization_test_data/<language>_generated_files` contains sketches produced by one implementation and intended to be read and validated by the others.
+
+The DataSketches implementation repositories use the same `serialization_test_data/<language>_generated_files` layout for their cross-language fixtures, so a TCK checkout can serve directly as an implementation's test data root, and moving files between the TCK and an implementation is a plain copy.
 
 This repository generates snapshots from the upstream sources configured in `config.toml` instead of following the latest branch. Each source records its repository and exact commit so a checkout remains reproducible.
 
@@ -35,7 +37,7 @@ With the [toolchain installed](#set-up-the-toolchain), adopt a different upstrea
 mise run tck -- snapshots update go main
 ```
 
-The command resolves the supplied revision to an exact commit ID, writes it to `[snapshot.go]` in `config.toml`, and regenerates `serialization/go/snapshots`. Generation happens before either file set is changed, so a generation failure leaves the repository untouched.
+The command resolves the supplied revision to an exact commit ID, writes it to `[snapshot.go]` in `config.toml`, and regenerates `serialization_test_data/go_generated_files`. Generation happens before either file set is changed, so a generation failure leaves the repository untouched.
 
 Updates intentionally handle one source at a time so each upstream change can be reviewed independently. If the upstream build or output layout changed, update the corresponding adapter in `internal/snapshots/<language>.go` before running the command.
 
@@ -43,7 +45,7 @@ Review the resolved pin and corpus together:
 
 ```shell
 git diff --stat
-git diff -- config.toml serialization/go/snapshots
+git diff -- config.toml serialization_test_data/go_generated_files
 ```
 
 Added and deleted files change the set of compatibility cases. Unexpected changes to deterministic files should be understood from the upstream change before they are accepted.
@@ -114,6 +116,6 @@ Snapshot generation is kept out of the required workflow because it clones and b
 
 ## Implementation notes
 
-For each requested language, the `tck` command reads the repository and commit from `config.toml`, checks out that revision in a temporary workspace, and invokes the source-specific adapter in `internal/snapshots/<language>.go`. It then compares the generated output with `serialization/<language>/snapshots`.
+For each requested language, the `tck` command reads the repository and commit from `config.toml`, checks out that revision in a temporary workspace, and invokes the source-specific adapter in `internal/snapshots/<language>.go`. It then compares the generated output with `serialization_test_data/<language>_generated_files`.
 
 The command-line interface and change report live in `cmd/tck`. Reconciliation and file comparison live in `internal/snapshots`, where `stability.go` classifies deterministic and known probabilistic outputs.

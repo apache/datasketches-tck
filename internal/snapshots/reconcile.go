@@ -118,7 +118,7 @@ func Reconcile(
 		return Result{}, fmt.Errorf("generate %s snapshots: %w", language, err)
 	}
 
-	target := filepath.Join(repositoryRoot, "serialization", language, "snapshots")
+	target := snapshotDirectory(repositoryRoot, language)
 	changes, err := compareDirectories(target, generated, generator.stability)
 	if err != nil {
 		return Result{}, err
@@ -171,6 +171,14 @@ func Reconcile(
 		}
 	}
 	return result, nil
+}
+
+// snapshotDirectory returns where a language's snapshots are committed. The
+// serialization_test_data/<language>_generated_files layout matches the
+// DataSketches implementation repositories, so a TCK checkout can be used
+// directly as their test data root.
+func snapshotDirectory(repositoryRoot, language string) string {
+	return filepath.Join(repositoryRoot, "serialization_test_data", language+"_generated_files")
 }
 
 func replaceDirectory(target, generated string) error {
