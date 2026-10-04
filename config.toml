@@ -15,7 +15,7 @@
 
 [snapshot.cpp]
 repository = "https://github.com/apache/datasketches-cpp.git"
-commit = "fe0261aa043c1d3af9a92a62fa286caabbf6fa84"
+commit = "16d4ea6f2013f7fb005eb53ea2b88bf5da937652"
 
 [snapshot.go]
 repository = "https://github.com/apache/datasketches-go.git"
@@ -23,4 +23,4 @@ commit = "757a485a1cb8df2873ea61da28d9b4053eee6852"
 
 [snapshot.java]
 repository = "https://github.com/apache/datasketches-java.git"
-commit = "3a1bf7f2f22e78c0c227bbe409ce4b4f386f630c"
+commit = "059b5a9ccf15f4036a50624cc910128e6b015636"
