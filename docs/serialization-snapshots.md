@@ -17,7 +17,9 @@
 
 # Serialization snapshots
 
-The serialization corpus is a compatibility boundary between DataSketches implementations. Each directory under `serialization/<language>/snapshots` contains sketches produced by one implementation and intended to be read and validated by the others.
+The serialization corpus is a compatibility boundary between DataSketches implementations. Each directory `serialization_test_data/<language>_generated_files` contains sketches produced by one implementation and intended to be read and validated by the others.
+
+The DataSketches implementation repositories use the same `serialization_test_data/<language>_generated_files` layout for their cross-language fixtures, so a TCK checkout can serve directly as an implementation's test data root, and moving files between the TCK and an implementation is a plain copy.
 
 The `main` branch of this repository publishes the latest self-tested snapshots from every source language. Each language validates its own snapshots with its generators and round-trip tests before they reach the TCK, so a snapshot set that passes there is ready to publish. Whether each implementation can read the others' snapshots is then answered by running its cross-language tests against the latest set, not by reviewing the `.sk` files by hand.
 
@@ -37,7 +39,7 @@ With the [toolchain installed](#set-up-the-toolchain), update every source to it
 mise run tck -- snapshots update all
 ```
 
-For each source, the command resolves the default branch to an exact commit ID, writes it to `config.toml`, and regenerates that source's snapshot directory. Generation happens before either file set is changed, so a source whose generation fails is left untouched; the remaining sources are still updated and the command exits with an error naming the failed sources.
+For each source, the command resolves the default branch to an exact commit ID, writes it to `config.toml`, and regenerates `serialization_test_data/<language>_generated_files`. Generation happens before either file set is changed, so a source whose generation fails is left untouched; the remaining sources are still updated and the command exits with an error naming the failed sources.
 
 When a source's commit has not changed and only probabilistic snapshots differ, its snapshots are left as they are, so repeated updates do not add binary churn to the history.
 
@@ -60,7 +62,7 @@ Review the resolved pins and the corpus together:
 
 ```shell
 git diff --stat
-git diff -- config.toml serialization/go/snapshots
+git diff -- config.toml serialization_test_data/go_generated_files
 ```
 
 Most modified files are probabilistic snapshots, which are expected to change on every generation. The update report classifies each change, so the meaningful part of a review is short: added and deleted files change the set of compatibility cases, and changes to deterministic snapshots, such as a flag bit, should be understood from the upstream change.
@@ -133,6 +135,6 @@ The probabilistic classification only controls byte-level comparison in this rep
 
 ## Implementation notes
 
-For each requested language, the `tck` command reads the repository and commit from `config.toml`, checks out that revision in a temporary workspace, and invokes the source-specific adapter in `internal/snapshots/<language>.go`. It then compares the generated output with `serialization/<language>/snapshots`.
+For each requested language, the `tck` command reads the repository and commit from `config.toml`, checks out that revision in a temporary workspace, and invokes the source-specific adapter in `internal/snapshots/<language>.go`. It then compares the generated output with `serialization_test_data/<language>_generated_files`.
 
 The command-line interface and change report live in `cmd/tck`. Reconciliation and file comparison live in `internal/snapshots`, where `stability.go` classifies deterministic and known probabilistic outputs.

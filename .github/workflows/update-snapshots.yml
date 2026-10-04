@@ -65,13 +65,13 @@ jobs:
       # source failed, so one broken upstream does not hold back the others.
       - name: Commit updated snapshots
         run: |
-          if [[ -z "$(git status --porcelain -- config.toml serialization)" ]]; then
+          if [[ -z "$(git status --porcelain -- config.toml serialization_test_data)" ]]; then
             echo "Snapshots are already up to date."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- config.toml serialization
+          git add -- config.toml serialization_test_data
           {
             echo "chore: update snapshots to the latest upstream revisions"
             echo

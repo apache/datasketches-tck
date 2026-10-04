@@ -34,7 +34,7 @@ func TestPrintResultIncludesDetailedFileChanges(t *testing.T) {
 	before := testMetadata(12, 0xaa)
 	after := testMetadata(16, 0xbb)
 	result := snapshots.Result{
-		Target: filepath.Join(root, "serialization", "go", "snapshots"),
+		Target: filepath.Join(root, "serialization_test_data", "go_generated_files"),
 		Changes: []snapshots.Change{
 			{
 				Status: snapshots.ChangeAdded, Stability: snapshots.Stable,
