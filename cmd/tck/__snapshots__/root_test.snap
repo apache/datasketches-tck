@@ -9,7 +9,7 @@ Usage:
 Available Commands:
   check       Check the snapshot set and stable snapshot contents
   sync        Synchronize snapshots from config.toml
-  update      Adopt one upstream revision and update its snapshots
+  update      Adopt upstream revisions and update their snapshots
 
 Flags:
   -h, --help   help for snapshots

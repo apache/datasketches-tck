@@ -1,0 +1,87 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Publishes the latest self-tested snapshots from every source language, so
+# that main always holds the newest snapshot set. This workflow is not a
+# required check.
+
+name: Update snapshots
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: Update snapshots from every source
+    if: github.repository == 'apache/datasketches-tck'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup mise
+        uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3.6.3
+
+      - name: Update snapshots
+        id: update
+        run: |
+          set +e
+          mise run tck -- snapshots update all 2>&1 | tee update.log
+          status=${PIPESTATUS[0]}
+          set -e
+          echo "status=${status}" >> "$GITHUB_OUTPUT"
+          {
+            echo '## Snapshot update'
+            echo
+            echo '```'
+            grep -E '^(Update |Summary:|Source revision:|✓|✗|Error:)' update.log || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Sources that updated successfully are published even when another
+      # source failed, so one broken upstream does not hold back the others.
+      - name: Commit updated snapshots
+        run: |
+          if [[ -z "$(git status --porcelain -- config.toml serialization)" ]]; then
+            echo "Snapshots are already up to date."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- config.toml serialization
+          {
+            echo "chore: update snapshots to the latest upstream revisions"
+            echo
+            grep -E '^(Update |Summary:|Source revision:)' update.log || true
+          } > commit-message.txt
+          git commit --quiet --file commit-message.txt
+          git push origin HEAD:${{ github.ref_name }}
+
+      - name: Report failed sources
+        if: steps.update.outputs.status != '0'
+        run: |
+          grep -E '^(✗|Error:)' update.log || true
+          exit 1

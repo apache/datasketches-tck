@@ -29,6 +29,10 @@ import (
 
 type Mode string
 
+// DefaultBranch is the revision that selects a source repository's default
+// branch: fetching HEAD from a remote resolves to the branch it points to.
+const DefaultBranch = "HEAD"
+
 const (
 	ModeCheck  Mode = "check"
 	ModeSync   Mode = "sync"
@@ -40,6 +44,8 @@ type Result struct {
 	PreviousRevision string
 	Revision         string
 	Changes          []Change
+	// Written reports whether the snapshot directory was replaced.
+	Written bool
 }
 
 func (result Result) RevisionChanged() bool {
@@ -138,11 +144,17 @@ func Reconcile(
 			if err := replaceDirectory(target, generated); err != nil {
 				return Result{}, err
 			}
+			result.Written = true
 		}
 		return result, nil
 	}
 
 	revisionChanged := result.RevisionChanged()
+	if !revisionChanged && !result.HasBlockingChanges() {
+		// Nothing new upstream. Rewriting the probabilistic snapshots would only
+		// add binary churn to the history without adopting anything.
+		return result, nil
+	}
 	if revisionChanged {
 		if err := config.setCommit(language, resolvedRevision); err != nil {
 			return Result{}, err
@@ -169,6 +181,7 @@ func Reconcile(
 			}
 			return Result{}, err
 		}
+		result.Written = true
 	}
 	return result, nil
 }

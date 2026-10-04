@@ -19,7 +19,9 @@
 
 The serialization corpus is a compatibility boundary between DataSketches implementations. Each directory under `serialization/<language>/snapshots` contains sketches produced by one implementation and intended to be read and validated by the others.
 
-This repository generates snapshots from the upstream sources configured in `config.toml` instead of following the latest branch. Each source records its repository and exact commit so a checkout remains reproducible.
+The `main` branch of this repository publishes the latest self-tested snapshots from every source language. Each language validates its own snapshots with its generators and round-trip tests before they reach the TCK, so a snapshot set that passes there is ready to publish. Whether each implementation can read the others' snapshots is then answered by running its cross-language tests against the latest set, not by reviewing the `.sk` files by hand.
+
+`config.toml` records the repository and exact commit each snapshot directory was generated from, so any TCK commit remains reproducible:
 
 ```toml
 [snapshot.go]
@@ -27,26 +29,41 @@ repository = "https://github.com/apache/datasketches-go.git"
 commit = "730c0ca31e00b8becf8b70591ae8ca73954912d0"
 ```
 
-## Update one source
+## Update to the latest snapshots
 
-With the [toolchain installed](#set-up-the-toolchain), adopt a different upstream branch, tag, or commit by specifying one source language and revision:
+With the [toolchain installed](#set-up-the-toolchain), update every source to its default branch:
 
 ```shell
-mise run tck -- snapshots update go main
+mise run tck -- snapshots update all
 ```
 
-The command resolves the supplied revision to an exact commit ID, writes it to `[snapshot.go]` in `config.toml`, and regenerates `serialization/go/snapshots`. Generation happens before either file set is changed, so a generation failure leaves the repository untouched.
+For each source, the command resolves the default branch to an exact commit ID, writes it to `config.toml`, and regenerates that source's snapshot directory. Generation happens before either file set is changed, so a source whose generation fails is left untouched; the remaining sources are still updated and the command exits with an error naming the failed sources.
 
-Updates intentionally handle one source at a time so each upstream change can be reviewed independently. If the upstream build or output layout changed, update the corresponding adapter in `internal/snapshots/<language>.go` before running the command.
+When a source's commit has not changed and only probabilistic snapshots differ, its snapshots are left as they are, so repeated updates do not add binary churn to the history.
 
-Review the resolved pin and corpus together:
+The [Update snapshots](#github-actions) workflow runs this command weekly and commits the result to `main`.
+
+## Update one source
+
+Update a single source to its default branch, or to a specific branch, tag, or commit:
+
+```shell
+mise run tck -- snapshots update go
+mise run tck -- snapshots update go v0.2.0
+```
+
+Pinning an older revision is useful for reproducing a release or for holding a source back while an upstream problem is fixed. If the upstream build or output layout changed, update the corresponding adapter in `internal/snapshots/<language>.go` before running the command.
+
+## Review an update
+
+Review the resolved pins and the corpus together:
 
 ```shell
 git diff --stat
 git diff -- config.toml serialization/go/snapshots
 ```
 
-Added and deleted files change the set of compatibility cases. Unexpected changes to deterministic files should be understood from the upstream change before they are accepted.
+Most modified files are probabilistic snapshots, which are expected to change on every generation. The update report classifies each change, so the meaningful part of a review is short: added and deleted files change the set of compatibility cases, and changes to deterministic snapshots, such as a flag bit, should be understood from the upstream change.
 
 Verify that generation is reproducible at the new pin and run the repository checks:
 
@@ -67,7 +84,7 @@ mise run tck -- snapshots check go
 
 Check mode does not modify the repository. It fails for added or deleted files and for content changes to deterministic snapshots. It reports, but allows, content changes to existing snapshots classified as probabilistic by `internal/snapshots/stability.go`.
 
-This command answers whether the repository matches its pin; it does not determine whether the pin is the latest upstream commit.
+This command answers whether the repository matches its pin; it does not determine whether the pin is the latest upstream commit. Use update mode for that.
 
 ## Synchronize configured snapshots
 
@@ -90,13 +107,15 @@ mise run tck -- snapshots --help
 
 Mise supplies Go, CMake and CTest, Java, and Maven. Git is required for every source language, a C++ compiler is required for C++, and Make is required for Go.
 
-Check mode accepts `cpp`, `go`, `java`, or `all`. Synchronization takes no arguments, while update requires one source language and revision.
+Check mode accepts `cpp`, `go`, `java`, or `all`. Synchronization takes no arguments. Update accepts `cpp`, `go`, `java`, or `all`, and an optional revision for a single source.
 
 ## Use the corpus from an implementation
 
 An implementation consumes the `.sk` files as test fixtures. Its compatibility tests should load snapshots produced by the other source languages, deserialize each supported sketch family, and assert observable results with tolerances appropriate to that algorithm.
 
 This repository centralizes the fixture corpus and source-side generation. Consumer tests remain in the individual DataSketches implementation repositories.
+
+By default, an implementation should test against the latest snapshot set on `main`. A failure then shows exactly which source language and sketch disagree, as early as possible. To keep a release or a CI run from changing underneath it, an implementation can instead pin a specific TCK commit.
 
 ## Review policy for probabilistic snapshots
 
@@ -110,7 +129,7 @@ The probabilistic classification only controls byte-level comparison in this rep
 
 `.github/workflows/check.yml` runs `mise run check` for pull requests and pushes to `main`. It validates the Go implementation of the TCK tooling, but it does not run the upstream snapshot generators or modify committed snapshots.
 
-Snapshot generation is kept out of the required workflow because it clones and builds three external projects, and because an automated update cannot decide whether an upstream compatibility change should be adopted. A pull request that updates a pin should include the generated corpus changes and record which source-language checks were run locally.
+`.github/workflows/update-snapshots.yml` runs `snapshots update all` every Monday and on manual dispatch, and commits any updated pins and snapshots directly to `main`. It is not a required check. The job summary lists each source's revision change and change counts. If a source fails to generate, the other sources are still committed and the run fails so that the broken upstream is noticed.
 
 ## Implementation notes
 

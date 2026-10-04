@@ -85,6 +85,15 @@ func printResult(output io.Writer, root string, mode snapshots.Mode, result snap
 	}
 
 	switch {
+	case (mode == snapshots.ModeUpdate || mode == snapshots.ModeSync) && !result.Written:
+		_, err := fmt.Fprintf(
+			output,
+			"✓ %s already matches its source revision; %d probabilistic content %s not written.\n",
+			target,
+			unstableModified,
+			plural(unstableModified, "modification was", "modifications were"),
+		)
+		return err
 	case mode == snapshots.ModeUpdate:
 		_, err := fmt.Fprintf(output, "✓ Updated %s.\n", target)
 		return err
