@@ -24,7 +24,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"github.com/apache/datasketches-tck/internal/snapshots"
@@ -81,34 +80,24 @@ func newSnapshotSyncCommand() *cobra.Command {
 }
 
 func newSnapshotUpdateCommand() *cobra.Command {
-	validLanguages := append(snapshots.Languages(), "all")
 	return &cobra.Command{
-		Use:   "update <cpp|go|java|all> [revision]",
+		Use:   "update <cpp|go|java> <revision>",
 		Short: reconcileDescription(snapshots.ModeUpdate),
 		Long:  reconcileDetails(snapshots.ModeUpdate),
 		Args: func(command *cobra.Command, args []string) error {
-			if err := cobra.RangeArgs(1, 2)(command, args); err != nil {
+			if err := cobra.ExactArgs(2)(command, args); err != nil {
 				return err
 			}
-			if !slices.Contains(validLanguages, args[0]) {
-				return fmt.Errorf("unsupported snapshot language %q", args[0])
+			for _, language := range snapshots.Languages() {
+				if args[0] == language {
+					return nil
+				}
 			}
-			if args[0] == "all" && len(args) == 2 {
-				return errors.New("a revision cannot be selected with all; each source is updated to its default branch")
-			}
-			return nil
+			return fmt.Errorf("unsupported snapshot language %q", args[0])
 		},
-		ValidArgs: validLanguages,
+		ValidArgs: snapshots.Languages(),
 		RunE: func(command *cobra.Command, args []string) error {
-			languages := []string{args[0]}
-			if args[0] == "all" {
-				languages = snapshots.Languages()
-			}
-			revision := snapshots.DefaultBranch
-			if len(args) == 2 {
-				revision = args[1]
-			}
-			return reconcileSnapshots(command, snapshots.ModeUpdate, languages, revision)
+			return reconcileSnapshots(command, snapshots.ModeUpdate, []string{args[0]}, args[1])
 		},
 	}
 }
@@ -125,7 +114,6 @@ func reconcileSnapshots(
 	}
 
 	outOfDate := false
-	var failed []string
 	for index, language := range languages {
 		if index > 0 {
 			if _, err := fmt.Fprintln(command.OutOrStdout()); err != nil {
@@ -151,23 +139,12 @@ func reconcileSnapshots(
 			command.ErrOrStderr(),
 		)
 		if err != nil {
-			if len(languages) == 1 {
-				return err
-			}
-			// Keep going so one broken upstream does not hold back the others.
-			failed = append(failed, languageHeading(language))
-			if _, printErr := fmt.Fprintf(command.ErrOrStderr(), "✗ %v\n", err); printErr != nil {
-				return fmt.Errorf("print snapshot failure: %w", printErr)
-			}
-			continue
+			return err
 		}
 		if err := printResult(command.OutOrStdout(), root, mode, result); err != nil {
 			return fmt.Errorf("print snapshot result: %w", err)
 		}
 		outOfDate = outOfDate || (mode == snapshots.ModeCheck && result.HasBlockingChanges())
-	}
-	if len(failed) > 0 {
-		return fmt.Errorf("%s snapshots failed for %s", strings.ToLower(modeHeading(mode)), strings.Join(failed, ", "))
 	}
 	if outOfDate {
 		return errSnapshotsOutOfDate
@@ -182,7 +159,7 @@ func reconcileDescription(mode snapshots.Mode) string {
 	case snapshots.ModeSync:
 		return "Synchronize snapshots from config.toml"
 	case snapshots.ModeUpdate:
-		return "Adopt upstream revisions and update their snapshots"
+		return "Adopt one upstream revision and update its snapshots"
 	default:
 		panic(fmt.Sprintf("unsupported snapshot mode %q", mode))
 	}
@@ -195,7 +172,7 @@ func reconcileDetails(mode snapshots.Mode) string {
 	case snapshots.ModeSync:
 		return "Regenerate all snapshot directories from the repositories and commits in config.toml without changing the config."
 	case snapshots.ModeUpdate:
-		return "Resolve an upstream commit, branch, or tag, record its exact commit ID in config.toml, and regenerate that source's snapshots. Without a revision, the source's default branch is used; all updates every source to its default branch. Snapshots are left untouched when the revision is unchanged and only probabilistic snapshots differ."
+		return "Resolve an upstream commit, branch, or tag, record its exact commit ID in config.toml, and regenerate that source's snapshots. Snapshots are left untouched when the revision is unchanged and only probabilistic snapshots differ."
 	default:
 		panic(fmt.Sprintf("unsupported snapshot mode %q", mode))
 	}

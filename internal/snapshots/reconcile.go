@@ -29,10 +29,6 @@ import (
 
 type Mode string
 
-// DefaultBranch is the revision that selects a source repository's default
-// branch: fetching HEAD from a remote resolves to the branch it points to.
-const DefaultBranch = "HEAD"
-
 const (
 	ModeCheck  Mode = "check"
 	ModeSync   Mode = "sync"

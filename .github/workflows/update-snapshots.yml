@@ -47,11 +47,14 @@ jobs:
 
       - name: Update snapshots
         id: update
+        shell: bash
         run: |
-          set +e
-          mise run tck -- snapshots update all 2>&1 | tee update.log
-          status=${PIPESTATUS[0]}
-          set -e
+          status=0
+          for language in cpp go java; do
+            if ! mise run tck -- snapshots update "$language" HEAD 2>&1 | tee -a update.log; then
+              status=1
+            fi
+          done
           echo "status=${status}" >> "$GITHUB_OUTPUT"
           {
             echo '## Snapshot update'

@@ -46,27 +46,3 @@ func TestRunRejectsUnsupportedLanguage(t *testing.T) {
 	require.Empty(t, output.String())
 	require.Contains(t, stderr.String(), `invalid argument "python" for "tck snapshots check"`)
 }
-
-func TestRunRejectsRevisionForAllUpdates(t *testing.T) {
-	t.Parallel()
-
-	var output bytes.Buffer
-	var stderr bytes.Buffer
-	exitCode := run(t.Context(), []string{"snapshots", "update", "all", "main"}, &output, &stderr)
-
-	require.Equal(t, 1, exitCode)
-	require.Empty(t, output.String())
-	require.Contains(t, stderr.String(), "a revision cannot be selected with all")
-}
-
-func TestRunRejectsUnsupportedUpdateLanguage(t *testing.T) {
-	t.Parallel()
-
-	var output bytes.Buffer
-	var stderr bytes.Buffer
-	exitCode := run(t.Context(), []string{"snapshots", "update", "python"}, &output, &stderr)
-
-	require.Equal(t, 1, exitCode)
-	require.Empty(t, output.String())
-	require.Contains(t, stderr.String(), `unsupported snapshot language "python"`)
-}

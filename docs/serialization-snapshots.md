@@ -33,24 +33,26 @@ commit = "730c0ca31e00b8becf8b70591ae8ca73954912d0"
 
 ## Update to the latest snapshots
 
-With the [toolchain installed](#set-up-the-toolchain), update every source to its default branch:
+With the [toolchain installed](#set-up-the-toolchain), use `HEAD` to update each source to its default branch:
 
 ```shell
-mise run tck -- snapshots update all
+mise run tck -- snapshots update cpp HEAD
+mise run tck -- snapshots update go HEAD
+mise run tck -- snapshots update java HEAD
 ```
 
-For each source, the command resolves the default branch to an exact commit ID, writes it to `config.toml`, and regenerates `serialization_test_data/<language>_generated_files`. Generation happens before either file set is changed, so a source whose generation fails is left untouched; the remaining sources are still updated and the command exits with an error naming the failed sources.
+For each source, the command resolves the default branch to an exact commit ID, writes it to `config.toml`, and regenerates `serialization_test_data/<language>_generated_files`. Generation happens before either file set is changed, so a source whose generation fails is left untouched.
 
 When a source's commit has not changed and only probabilistic snapshots differ, its snapshots are left as they are, so repeated updates do not add binary churn to the history.
 
-The [Update snapshots](#github-actions) workflow runs this command weekly and commits the result to `main`.
+The [Update snapshots](#github-actions) workflow runs these commands weekly and commits the result to `main`. It continues with the other languages if one fails, then reports the failure after committing successful updates.
 
 ## Update one source
 
 Update a single source to its default branch, or to a specific branch, tag, or commit:
 
 ```shell
-mise run tck -- snapshots update go
+mise run tck -- snapshots update go HEAD
 mise run tck -- snapshots update go v0.2.0
 ```
 
@@ -109,7 +111,7 @@ mise run tck -- snapshots --help
 
 Mise supplies Go, CMake and CTest, Java, and Maven. Git is required for every source language, a C++ compiler is required for C++, and Make is required for Go.
 
-Check mode accepts `cpp`, `go`, `java`, or `all`. Synchronization takes no arguments. Update accepts `cpp`, `go`, `java`, or `all`, and an optional revision for a single source.
+Check mode accepts `cpp`, `go`, `java`, or `all`. Synchronization takes no arguments. Update accepts one of `cpp`, `go`, or `java`, followed by a required revision.
 
 ## Use the corpus from an implementation
 
@@ -131,7 +133,7 @@ The probabilistic classification only controls byte-level comparison in this rep
 
 `.github/workflows/check.yml` runs `mise run check` for pull requests and pushes to `main`. It validates the Go implementation of the TCK tooling, but it does not run the upstream snapshot generators or modify committed snapshots.
 
-`.github/workflows/update-snapshots.yml` runs `snapshots update all` every Monday and on manual dispatch, and commits any updated pins and snapshots directly to `main`. It is not a required check. The job summary lists each source's revision change and change counts. If a source fails to generate, the other sources are still committed and the run fails so that the broken upstream is noticed.
+`.github/workflows/update-snapshots.yml` runs `snapshots update <language> HEAD` for `cpp`, `go`, and `java` every Monday and on manual dispatch, and commits any updated pins and snapshots directly to `main`. It is not a required check. The job summary lists each source's revision change and change counts. If a source fails to generate, the other sources are still committed and the run fails so that the broken upstream is noticed.
 
 ## Implementation notes
 
