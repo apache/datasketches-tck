@@ -74,6 +74,26 @@ func TestPrintResultAllowsOnlyUnstableModifications(t *testing.T) {
 	snaps.WithConfig(snaps.Raw()).MatchSnapshot(t, output.String())
 }
 
+func TestPrintResultReportsUnwrittenUpdate(t *testing.T) {
+	t.Parallel()
+
+	before := testMetadata(12, 0xaa)
+	after := testMetadata(12, 0xbb)
+	result := snapshots.Result{
+		Target:           "snapshots",
+		PreviousRevision: "a",
+		Revision:         "a",
+		Changes: []snapshots.Change{{
+			Status: snapshots.ChangeModified, Stability: snapshots.Unstable,
+			Path: "probabilistic.sk", Before: &before, After: &after,
+		}},
+	}
+
+	var output bytes.Buffer
+	require.NoError(t, printResult(&output, ".", snapshots.ModeUpdate, result))
+	snaps.WithConfig(snaps.Raw()).MatchSnapshot(t, output.String())
+}
+
 func testMetadata(size int64, fill byte) snapshots.FileMetadata {
 	metadata := snapshots.FileMetadata{Size: size}
 	for index := range metadata.SHA256 {

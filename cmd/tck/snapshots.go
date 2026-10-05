@@ -172,7 +172,7 @@ func reconcileDetails(mode snapshots.Mode) string {
 	case snapshots.ModeSync:
 		return "Regenerate all snapshot directories from the repositories and commits in config.toml without changing the config."
 	case snapshots.ModeUpdate:
-		return "Resolve an upstream commit, branch, or tag, record its exact commit ID in config.toml, and regenerate that source's snapshots."
+		return "Resolve an upstream commit, branch, or tag, record its exact commit ID in config.toml, and regenerate that source's snapshots. Snapshots are left untouched when the revision is unchanged and only probabilistic snapshots differ."
 	default:
 		panic(fmt.Sprintf("unsupported snapshot mode %q", mode))
 	}
