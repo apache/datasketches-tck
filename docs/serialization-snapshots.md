@@ -21,7 +21,7 @@ The serialization corpus is a compatibility boundary between DataSketches implem
 
 The DataSketches implementation repositories use the same `serialization_test_data/<language>_generated_files` layout for their cross-language fixtures, so a TCK checkout can serve directly as an implementation's test data root, and moving files between the TCK and an implementation is a plain copy.
 
-The `main` branch of this repository publishes the latest self-tested snapshots from every source language. Each language validates its own snapshots with its generators and round-trip tests before they reach the TCK, so a snapshot set that passes there is ready to publish. Whether each implementation can read the others' snapshots is then answered by running its cross-language tests against the latest set, not by reviewing the `.sk` files by hand.
+The `main` branch of this repository publishes self-tested snapshot updates from every source language when the file set or stable contents change. Each language validates its own snapshots with its generators and round-trip tests before they reach the TCK, so a snapshot set that passes there is ready to publish. Whether each implementation can read the others' snapshots is then answered by running its cross-language tests against the latest set, not by reviewing the `.sk` files by hand.
 
 `config.toml` records the repository and exact commit each snapshot directory was generated from, so any TCK commit remains reproducible:
 
@@ -50,11 +50,11 @@ Update is the only command that writes snapshots. It accepts an optional languag
 
 A revision can only be supplied after a language. To regenerate or repair snapshots at an existing pin, pass the commit recorded in `config.toml` explicitly. Updating to an older revision follows the same process as updating to a newer one. If the upstream build or output layout changed, update the corresponding adapter in `internal/snapshots/<language>.go` before running the command.
 
-Every selected source is generated in a temporary workspace and compared before any repository files are replaced. A generation or staging failure aborts the whole batch. Successful updates publish the selected snapshot directories and their exact commits in `config.toml` together. A changed revision with byte-identical snapshots only changes the pin, after generation has verified those contents.
+Every selected source is generated in a temporary workspace and compared before any repository files are replaced. A generation or staging failure aborts the whole batch. Successful updates publish the selected snapshot directories and their exact commits in `config.toml` together. By default, a changed revision with byte-identical snapshots only changes the pin, after generation has verified those contents.
 
 ### Skip unstable-only changes
 
-`stable` snapshots have deterministic contents. `unstable` snapshots are known to vary between generations, even at the same source commit. By default, update adopts all generated differences, including unstable contents. Add `--skip-unstable-only` to any update invocation to avoid rewriting a source whose commit is unchanged and whose only differences are modifications to existing unstable files:
+`stable` snapshots have deterministic contents. `unstable` snapshots are known to vary between generations, even at the same source commit. By default, update adopts all generated differences, including unstable contents. Add `--skip-unstable-only` to any update invocation to adopt a source only when files are added or deleted, or stable contents change, even if the requested revision differs from the current pin:
 
 ```shell
 mise run tck -- snapshots update --skip-unstable-only
@@ -62,15 +62,18 @@ mise run tck -- snapshots update go --skip-unstable-only
 mise run tck -- snapshots update go v0.2.0 --skip-unstable-only
 ```
 
-The option applies independently to each selected language. It skips that source's entire update; it never filters individual files from an adopted snapshot set. A revision change, any added or deleted file, or any stable content change causes the complete generated snapshot set to be adopted, including its unstable files. The report identifies skipped sources and shows observed differences even when they were not written.
+The option applies independently to each selected language. If the file set and stable contents are unchanged, the entire snapshot directory and its pin in `config.toml` are retained together. This includes byte-identical output at a different revision. The pin continues to identify the source of the retained corpus, rather than the last revision checked, so skipping an update does not introduce drift. Omit the flag to intentionally adopt a revision even when it has no stable snapshot changes.
+
+Any added or deleted file, including an unstable file, or any stable content change causes the complete generated snapshot set and its revision to be adopted, including its unstable files. The report shows observed differences and explicitly distinguishes a retained pin from the generated revision for skipped sources.
 
 | Source revision | Snapshot differences                     | Default                      | With `--skip-unstable-only`  |
 |-----------------|------------------------------------------|------------------------------|------------------------------|
 | Unchanged       | None                                     | No changes                   | No changes                   |
-| Unchanged       | Only existing unstable contents          | Replace snapshots            | Keep the existing snapshots  |
+| Unchanged       | Only existing unstable contents          | Replace snapshots            | Keep snapshots and pin       |
 | Unchanged       | Additions, deletions, or stable contents | Replace snapshots            | Replace snapshots            |
-| Changed         | None                                     | Update the pin               | Update the pin               |
-| Changed         | Any                                      | Update the pin and snapshots | Update the pin and snapshots |
+| Changed         | None                                     | Update the pin               | Keep snapshots and pin       |
+| Changed         | Only existing unstable contents          | Update the pin and snapshots | Keep snapshots and pin       |
+| Changed         | Additions, deletions, or stable contents | Update the pin and snapshots | Update the pin and snapshots |
 
 ### Publication and failures
 
@@ -143,7 +146,7 @@ The stable/unstable classification controls check results and the optional unsta
 
 `.github/workflows/check.yml` runs `mise run check` for pull requests and pushes to `main`. It validates the Go implementation of the TCK tooling, but it does not run the upstream snapshot generators or modify committed snapshots.
 
-`.github/workflows/update-snapshots.yml` runs `snapshots update --skip-unstable-only` every Monday and on manual dispatch. It is not a required check. The job summary lists each source's revision change, change counts, and skipped updates. The workflow commits and pushes the batch only after the command succeeds; any failed source prevents publication of the whole batch.
+`.github/workflows/update-snapshots.yml` runs `snapshots update --skip-unstable-only` every Monday and on manual dispatch. It is not a required check. Every run generates from upstream `HEAD`, but only sources with file additions, deletions, or stable content changes are adopted. The job summary and commit message include change counts, adopted or retained revisions, and skipped updates. The workflow commits and pushes the batch only after the command succeeds; any failed source prevents publication of the whole batch. If every source is skipped, no commit is created.
 
 ## Implementation notes
 

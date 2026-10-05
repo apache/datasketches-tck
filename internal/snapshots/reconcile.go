@@ -54,12 +54,6 @@ func (result Result) BlockingChangeCount() int {
 	return count
 }
 
-// UnstableOnly reports whether the only differences are content changes to
-// existing unstable snapshots. A revision change always requires an update.
-func (result Result) UnstableOnly() bool {
-	return !result.RevisionChanged() && len(result.Changes) > 0 && !result.HasBlockingChanges()
-}
-
 // Check regenerates a source at its configured commit without writing repository
 // files. Snapshot differences are returned in Result rather than as errors.
 func Check(ctx context.Context, root, language string, stdout, stderr io.Writer) (Result, error) {
@@ -81,8 +75,8 @@ func Check(ctx context.Context, root, language string, stdout, stderr io.Writer)
 
 // Update generates every selected source before publishing any changes. Empty
 // language selects all sources; empty revision selects each remote's HEAD.
-// With skipUnstableOnly, unchanged revisions with only unstable content changes
-// retain their entire snapshot directory. Other sources are updated in full.
+// With skipUnstableOnly, only additions, deletions, or stable content changes
+// cause a source's snapshots and pin to be adopted; otherwise both are retained.
 func Update(ctx context.Context, root, language, revision string, skipUnstableOnly bool, stdout, stderr io.Writer) ([]Result, error) {
 	languages := Languages()
 	if language != "" {
@@ -115,7 +109,7 @@ func Update(ctx context.Context, root, language, revision string, skipUnstableOn
 			return nil, fmt.Errorf("update aborted before publishing: %w", err)
 		}
 		results = append(results, result)
-		if skipUnstableOnly && result.UnstableOnly() {
+		if skipUnstableOnly && !result.HasBlockingChanges() {
 			continue
 		}
 		if result.RevisionChanged() {

@@ -13,9 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Publishes the latest self-tested snapshots from every source language, so
-# that main always holds the newest snapshot set. This workflow is not a
-# required check.
+# Publishes self-tested snapshots when files are added, deleted, or stable
+# contents change. Other sources retain their snapshots and pins together.
+# This workflow is not a required check.
 
 name: Update snapshots
 
@@ -73,7 +73,7 @@ jobs:
           {
             echo "chore: update snapshots to the latest upstream revisions"
             echo
-            grep -E '^(Update |Summary:|Source revision:)' "$RUNNER_TEMP/snapshot-update.log" || true
+            grep -E '^(Update |Summary:|Source revision:|✓)' "$RUNNER_TEMP/snapshot-update.log" || true
           } > "$RUNNER_TEMP/snapshot-commit-message.txt"
           git commit --quiet --file "$RUNNER_TEMP/snapshot-commit-message.txt"
           git push origin HEAD:${{ github.ref_name }}

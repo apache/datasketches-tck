@@ -54,11 +54,20 @@ func printUpdateResult(output io.Writer, root string, result snapshots.Result, s
 	if err := printChanges(output, result); err != nil {
 		return err
 	}
+	skipped := skipUnstableOnly && !result.HasBlockingChanges()
+	if result.RevisionChanged() {
+		format := "Source revision: %s -> %s\n"
+		if skipped {
+			format = "Source revision: keeping %s (generated %s)\n"
+		}
+		if _, err := fmt.Fprintf(output, format, result.PreviousRevision, result.Revision); err != nil {
+			return err
+		}
+	}
 	target := displayPath(root, result.Target)
 	switch {
-	case skipUnstableOnly && result.UnstableOnly():
-		_, err := fmt.Fprintf(output, "✓ Skipped %s: source revision unchanged; %d unstable content %s not written.\n",
-			target, len(result.Changes), plural(len(result.Changes), "modification was", "modifications were"))
+	case skipped:
+		_, err := fmt.Fprintf(output, "✓ Skipped %s: snapshot set and stable contents are unchanged; kept existing snapshots and source revision.\n", target)
 		return err
 	case result.RevisionChanged() && len(result.Changes) == 0:
 		_, err := fmt.Fprintf(output, "✓ Updated source revision for %s; snapshot contents are unchanged.\n", target)
@@ -74,9 +83,6 @@ func printUpdateResult(output io.Writer, root string, result snapshots.Result, s
 
 func printChanges(output io.Writer, result snapshots.Result) error {
 	if len(result.Changes) == 0 {
-		if result.RevisionChanged() {
-			return printRevisionChange(output, result)
-		}
 		return nil
 	}
 	counts := make(map[snapshots.ChangeStatus]int)
@@ -104,30 +110,13 @@ func printChanges(output io.Writer, result snapshots.Result) error {
 	if _, err := fmt.Fprintln(output, changeTable.Render()); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintf(
+	_, err := fmt.Fprintf(
 		output,
 		"Summary: %d added · %d modified (%d unstable) · %d deleted\n",
 		counts[snapshots.ChangeAdded],
 		counts[snapshots.ChangeModified],
 		unstableModified,
 		counts[snapshots.ChangeDeleted],
-	); err != nil {
-		return err
-	}
-	if result.RevisionChanged() {
-		if err := printRevisionChange(output, result); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func printRevisionChange(output io.Writer, result snapshots.Result) error {
-	_, err := fmt.Fprintf(
-		output,
-		"Source revision: %s -> %s\n",
-		result.PreviousRevision,
-		result.Revision,
 	)
 	return err
 }
