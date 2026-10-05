@@ -82,7 +82,7 @@ func TestPrintUpdateResultReportsSkippedChanges(t *testing.T) {
 	result := snapshots.Result{
 		Target:           "snapshots",
 		PreviousRevision: "a",
-		Revision:         "a",
+		Revision:         "b",
 		Changes: []snapshots.Change{{
 			Status: snapshots.ChangeModified, Stability: snapshots.Unstable,
 			Path: "probabilistic.sk", Before: &before, After: &after,
@@ -92,6 +92,29 @@ func TestPrintUpdateResultReportsSkippedChanges(t *testing.T) {
 	var output bytes.Buffer
 	require.NoError(t, printUpdateResult(&output, ".", result, true))
 	snaps.WithConfig(snaps.Raw()).MatchSnapshot(t, output.String())
+}
+
+func TestPrintUpdateResultWithIdenticalSnapshots(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		name string
+		skip bool
+	}{
+		{name: "adopt revision"},
+		{name: "retain revision", skip: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result := snapshots.Result{
+				Target:           "snapshots",
+				PreviousRevision: "a",
+				Revision:         "b",
+			}
+			var output bytes.Buffer
+			require.NoError(t, printUpdateResult(&output, ".", result, test.skip))
+			snaps.WithConfig(snaps.Raw()).MatchSnapshot(t, output.String())
+		})
+	}
 }
 
 func testMetadata(size int64, fill byte) snapshots.FileMetadata {

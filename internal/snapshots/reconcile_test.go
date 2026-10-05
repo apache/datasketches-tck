@@ -85,22 +85,12 @@ func TestUpdateGenerationFailureLeavesEntireBatchUntouched(t *testing.T) {
 }
 
 func TestUpdateSkipsUnstableSourceWithinBatch(t *testing.T) {
-	root, _, newRevision := updateFixture(t)
-	config, _, err := loadConfig(root)
-	require.NoError(t, err)
-	require.NoError(t, config.setCommit("go", newRevision))
-	content, err := encodeConfig(config)
-	require.NoError(t, err)
-	writeTestFile(t, filepath.Join(root, configFilename), string(content))
+	root, oldRevision, newRevision := updateFixture(t)
 	target := snapshotDirectory(root, "go")
-	writeTestFile(t, filepath.Join(target, "stable.sk"), "new")
 	writeTestFile(t, filepath.Join(target, "unstable.sk"), "old")
 	definition := generators["go"]
-	generate := definition.generate
-	definition.generate = func(ctx context.Context, paths generationPaths, runner commandRunner) error {
-		if err := generate(ctx, paths, runner); err != nil {
-			return err
-		}
+	definition.generate = func(_ context.Context, paths generationPaths, _ commandRunner) error {
+		writeTestFile(t, filepath.Join(paths.destination, "stable.sk"), "old")
 		writeTestFile(t, filepath.Join(paths.destination, "unstable.sk"), "new")
 		return nil
 	}
@@ -111,12 +101,17 @@ func TestUpdateSkipsUnstableSourceWithinBatch(t *testing.T) {
 		return Stable
 	}
 	generators["go"] = definition
-	_, err = Update(t.Context(), root, "", "", true, io.Discard, io.Discard)
+	_, err := Update(t.Context(), root, "", "", true, io.Discard, io.Discard)
 	require.NoError(t, err)
-	config, _, err = loadConfig(root)
+	config, _, err := loadConfig(root)
 	require.NoError(t, err)
 	for _, language := range Languages() {
 		source, _ := config.source(language)
+		if language == "go" {
+			require.Equal(t, oldRevision, source.Commit)
+			requireTestFile(t, filepath.Join(target, "stable.sk"), "old")
+			continue
+		}
 		require.Equal(t, newRevision, source.Commit)
 		requireTestFile(t, filepath.Join(snapshotDirectory(root, language), "stable.sk"), "new")
 	}
@@ -132,13 +127,16 @@ func TestUpdateUnstableOnlyPolicy(t *testing.T) {
 		keepOld   bool
 	}{
 		{name: "default refreshes unstable contents", generated: map[string]string{"stable.sk": "old", "unstable.sk": "new"}},
+		{name: "default adopts new revision with unstable contents", advance: true, generated: map[string]string{"stable.sk": "old", "unstable.sk": "new"}},
+		{name: "default adopts revision only", advance: true, generated: map[string]string{"stable.sk": "old", "unstable.sk": "old"}},
 		{name: "skip retains unchanged source", skip: true, generated: map[string]string{"stable.sk": "old", "unstable.sk": "new"}, keepOld: true},
-		{name: "new revision includes unstable contents", skip: true, advance: true, generated: map[string]string{"stable.sk": "old", "unstable.sk": "new"}},
+		{name: "skip retains old revision with unstable contents", skip: true, advance: true, generated: map[string]string{"stable.sk": "old", "unstable.sk": "new"}, keepOld: true},
 		{name: "stable change includes unstable contents", skip: true, generated: map[string]string{"stable.sk": "new", "unstable.sk": "new"}},
-		{name: "unstable addition is adopted", skip: true, generated: map[string]string{"stable.sk": "old", "unstable.sk": "new", "added.sk": "new"}},
-		{name: "unstable deletion is adopted", skip: true, generated: map[string]string{"stable.sk": "old"}},
-		{name: "revision only", skip: true, advance: true, generated: map[string]string{"stable.sk": "old", "unstable.sk": "old"}},
-		{name: "no changes", skip: true, generated: map[string]string{"stable.sk": "old", "unstable.sk": "old"}},
+		{name: "stable change adopts new revision and unstable contents", skip: true, advance: true, generated: map[string]string{"stable.sk": "new", "unstable.sk": "new"}},
+		{name: "unstable addition is adopted", skip: true, advance: true, generated: map[string]string{"stable.sk": "old", "unstable.sk": "new", "added.sk": "new"}},
+		{name: "unstable deletion is adopted", skip: true, advance: true, generated: map[string]string{"stable.sk": "old"}},
+		{name: "skip retains old revision with identical contents", skip: true, advance: true, generated: map[string]string{"stable.sk": "old", "unstable.sk": "old"}, keepOld: true},
+		{name: "no changes", skip: true, generated: map[string]string{"stable.sk": "old", "unstable.sk": "old"}, keepOld: true},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -163,17 +161,24 @@ func TestUpdateUnstableOnlyPolicy(t *testing.T) {
 			if test.advance {
 				revision = newRevision
 			}
+			_, before, err := loadConfig(root)
+			require.NoError(t, err)
 			results, err := Update(t.Context(), root, "go", revision, test.skip, io.Discard, io.Discard)
 			require.NoError(t, err)
 			require.Len(t, results, 1)
-			config, _, err := loadConfig(root)
+			require.Equal(t, oldRevision, results[0].PreviousRevision)
+			require.Equal(t, revision, results[0].Revision)
+			config, after, err := loadConfig(root)
 			require.NoError(t, err)
-			require.Equal(t, revision, config.Snapshot.Go.Commit)
 			require.Equal(t, oldRevision, config.Snapshot.CPP.Commit)
 			require.Equal(t, oldRevision, config.Snapshot.Java.Commit)
 			expected := test.generated
 			if test.keepOld {
 				expected = map[string]string{"stable.sk": "old", "unstable.sk": "old"}
+				require.Equal(t, string(before), string(after))
+				require.Equal(t, oldRevision, config.Snapshot.Go.Commit)
+			} else {
+				require.Equal(t, revision, config.Snapshot.Go.Commit)
 			}
 			entries, err := os.ReadDir(target)
 			require.NoError(t, err)

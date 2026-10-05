@@ -131,7 +131,7 @@ func newSnapshotUpdateCommand() *cobra.Command {
 		},
 	}
 	command.Flags().BoolVar(&skipUnstableOnly, "skip-unstable-only", false,
-		"Skip a source when its revision is unchanged and only existing unstable snapshots differ")
+		"Keep existing snapshots and source revision unless files are added, deleted, or stable contents change")
 	return command
 }
 
