@@ -19,6 +19,7 @@ package snapshots
 
 import (
 	"crypto/sha256"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -83,7 +84,7 @@ func TestChangeIsBlocking(t *testing.T) {
 	}
 }
 
-func TestReplaceDirectoryReplacesTheExactFileSet(t *testing.T) {
+func TestPublishReplacesTheExactFileSet(t *testing.T) {
 	t.Parallel()
 
 	root := t.TempDir()
@@ -94,7 +95,7 @@ func TestReplaceDirectoryReplacesTheExactFileSet(t *testing.T) {
 	writeTestFile(t, filepath.Join(generated, "modified.sk"), "new")
 	writeTestFile(t, filepath.Join(generated, "nested", "added.sk"), "added")
 
-	require.NoError(t, replaceDirectory(target, generated))
+	require.NoError(t, publish(root, []replacement{{target: target, source: generated}}, io.Discard))
 	requireTestFile(t, filepath.Join(target, "modified.sk"), "new")
 	requireTestFile(t, filepath.Join(target, "nested", "added.sk"), "added")
 	require.NoFileExists(t, filepath.Join(target, "deleted.sk"))

@@ -31,32 +31,52 @@ repository = "https://github.com/apache/datasketches-go.git"
 commit = "730c0ca31e00b8becf8b70591ae8ca73954912d0"
 ```
 
-## Update to the latest snapshots
+## Update snapshots
 
-With the [toolchain installed](#set-up-the-toolchain), use `HEAD` to update each source to its default branch:
-
-```shell
-mise run tck -- snapshots update cpp HEAD
-mise run tck -- snapshots update go HEAD
-mise run tck -- snapshots update java HEAD
-```
-
-For each source, the command resolves the default branch to an exact commit ID, writes it to `config.toml`, and regenerates `serialization_test_data/<language>_generated_files`. Generation happens before either file set is changed, so a source whose generation fails is left untouched.
-
-When a source's commit has not changed and only probabilistic snapshots differ, its snapshots are left as they are, so repeated updates do not add binary churn to the history.
-
-The [Update snapshots](#github-actions) workflow runs these commands weekly and commits the result to `main`. It continues with the other languages if one fails, then reports the failure after committing successful updates.
-
-## Update one source
-
-Update a single source to its default branch, or to a specific branch, tag, or commit:
+With the [toolchain installed](#set-up-the-toolchain), update every available source to its remote default branch:
 
 ```shell
-mise run tck -- snapshots update go HEAD
-mise run tck -- snapshots update go v0.2.0
+mise run tck -- snapshots update
 ```
 
-Pinning an older revision is useful for reproducing a release or for holding a source back while an upstream problem is fixed. If the upstream build or output layout changed, update the corresponding adapter in `internal/snapshots/<language>.go` before running the command.
+Update is the only command that writes snapshots. It accepts an optional language and, after that, an optional revision:
+
+| Command | Sources and revisions |
+| --- | --- |
+| `snapshots update` | All available languages at their remote `HEAD` |
+| `snapshots update go` | Go at its remote `HEAD` |
+| `snapshots update go HEAD` | The same explicit selection |
+| `snapshots update go v0.2.0` | Go at the specified tag; branches and commit IDs also work |
+
+A revision can only be supplied after a language. To regenerate or repair snapshots at an existing pin, pass the commit recorded in `config.toml` explicitly. Updating to an older revision follows the same process as updating to a newer one. If the upstream build or output layout changed, update the corresponding adapter in `internal/snapshots/<language>.go` before running the command.
+
+Every selected source is generated in a temporary workspace and compared before any repository files are replaced. A generation or staging failure aborts the whole batch. Successful updates publish the selected snapshot directories and their exact commits in `config.toml` together. A changed revision with byte-identical snapshots only changes the pin, after generation has verified those contents.
+
+### Skip unstable-only changes
+
+`stable` snapshots have deterministic contents. `unstable` snapshots are known to vary between generations, even at the same source commit. By default, update adopts all generated differences, including unstable contents. Add `--skip-unstable-only` to any update invocation to avoid rewriting a source whose commit is unchanged and whose only differences are modifications to existing unstable files:
+
+```shell
+mise run tck -- snapshots update --skip-unstable-only
+mise run tck -- snapshots update go --skip-unstable-only
+mise run tck -- snapshots update go v0.2.0 --skip-unstable-only
+```
+
+The option applies independently to each selected language. It skips that source's entire update; it never filters individual files from an adopted snapshot set. A revision change, any added or deleted file, or any stable content change causes the complete generated snapshot set to be adopted, including its unstable files. The report identifies skipped sources and shows observed differences even when they were not written.
+
+| Source revision | Snapshot differences | Default | With `--skip-unstable-only` |
+| --- | --- | --- | --- |
+| Unchanged | None | No changes | No changes |
+| Unchanged | Only existing unstable contents | Replace snapshots | Keep the existing snapshots |
+| Unchanged | Additions, deletions, or stable contents | Replace snapshots | Replace snapshots |
+| Changed | None | Update the pin | Update the pin |
+| Changed | Any | Update the pin and snapshots | Update the pin and snapshots |
+
+### Publication and failures
+
+The publisher stages the complete batch on the repository filesystem and retains backups until all replacements succeed. An installation error rolls back earlier replacements, including those for other languages. If rollback itself fails, the command reports the recovery directory and keeps its backups. Failure to remove backups after a successful publication is a warning and does not undo the published pins or snapshots.
+
+This is rollback protection for ordinary errors, not a crash-atomic filesystem transaction or synchronization for concurrent local writers. Do not run multiple updates against the same checkout. The command refuses to overwrite config edits detected after generation. In CI, an update failure prevents the commit step; a successful batch is published in one Git commit and a normal push. A rejected push leaves the remote unchanged; a push publishes the complete commit, never part of the batch.
 
 ## Review an update
 
@@ -90,16 +110,6 @@ Check mode does not modify the repository. It fails for added or deleted files a
 
 This command answers whether the repository matches its pin; it does not determine whether the pin is the latest upstream commit. Use update mode for that.
 
-## Synchronize configured snapshots
-
-Regenerate every snapshot directory from the repositories and commits currently recorded in `config.toml`:
-
-```shell
-mise run tck -- snapshots sync
-```
-
-Sync may change the committed snapshot directories, but it never changes `config.toml`.
-
 ## Set up the toolchain
 
 Install [mise](https://mise.jdx.dev/), then install the pinned toolchain and inspect the available snapshot commands:
@@ -111,7 +121,7 @@ mise run tck -- snapshots --help
 
 Mise supplies Go, CMake and CTest, Java, and Maven. Git is required for every source language, a C++ compiler is required for C++, and Make is required for Go.
 
-Check mode accepts `cpp`, `go`, `java`, or `all`. Synchronization takes no arguments. Update accepts one of `cpp`, `go`, or `java`, followed by a required revision.
+Check accepts `cpp`, `go`, `java`, or `all` and is always read-only. Update defaults to all languages at `HEAD`; specifying a language limits the update to that source, and a second argument selects its revision. The former `snapshots sync` command is replaced by `snapshots update <language> <recorded-commit>`.
 
 ## Use the corpus from an implementation
 
@@ -127,16 +137,16 @@ Some upstream generators contain randomness, so byte-for-byte reproduction is no
 
 Only modifications to existing probabilistic files are allowed in check mode. Additions and deletions always block the check because they alter the compatibility corpus, and modifications to deterministic files block because they indicate either a compatibility change or a non-reproducible generator.
 
-The probabilistic classification only controls byte-level comparison in this repository. Upstream generators remain responsible for constructing valid sketches, and consumers remain responsible for algorithm-appropriate assertions.
+The stable/unstable classification controls check results and the optional unstable-only update policy. It does not prove that an individual difference is random or that an old snapshot is valid for a new source revision. Upstream generators remain responsible for constructing valid sketches, and consumers remain responsible for algorithm-appropriate assertions.
 
 ## GitHub Actions
 
 `.github/workflows/check.yml` runs `mise run check` for pull requests and pushes to `main`. It validates the Go implementation of the TCK tooling, but it does not run the upstream snapshot generators or modify committed snapshots.
 
-`.github/workflows/update-snapshots.yml` runs `snapshots update <language> HEAD` for `cpp`, `go`, and `java` every Monday and on manual dispatch, and commits any updated pins and snapshots directly to `main`. It is not a required check. The job summary lists each source's revision change and change counts. If a source fails to generate, the other sources are still committed and the run fails so that the broken upstream is noticed.
+`.github/workflows/update-snapshots.yml` runs `snapshots update --skip-unstable-only` every Monday and on manual dispatch. It is not a required check. The job summary lists each source's revision change, change counts, and skipped updates. The workflow commits and pushes the batch only after the command succeeds; any failed source prevents publication of the whole batch.
 
 ## Implementation notes
 
-For each requested language, the `tck` command reads the repository and commit from `config.toml`, checks out that revision in a temporary workspace, and invokes the source-specific adapter in `internal/snapshots/<language>.go`. It then compares the generated output with `serialization_test_data/<language>_generated_files`.
+For each requested language, the `tck` command reads the source repository and existing pin from `config.toml`. Check generates at that pin; update resolves the requested revision, defaulting to remote `HEAD`. Both invoke the source-specific adapter in `internal/snapshots/<language>.go` in a temporary workspace and compare its output with `serialization_test_data/<language>_generated_files`. Update stages and publishes the selected directories and revised config as one batch.
 
 The command-line interface and change report live in `cmd/tck`. Reconciliation and file comparison live in `internal/snapshots`, where `stability.go` classifies deterministic and known probabilistic outputs.

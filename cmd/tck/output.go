@@ -29,20 +29,56 @@ import (
 	"github.com/jedib0t/go-pretty/v6/text"
 )
 
-func printResult(output io.Writer, root string, mode snapshots.Mode, result snapshots.Result) error {
-	target := displayPath(root, result.Target)
-	if len(result.Changes) == 0 {
-		if result.RevisionChanged() {
-			if err := printRevisionChange(output, result); err != nil {
-				return err
-			}
-			_, err := fmt.Fprintf(output, "✓ Updated %s.\n", target)
-			return err
-		}
-		_, err := fmt.Fprintf(output, "✓ %s is up to date.\n", target)
+func printCheckResult(output io.Writer, root string, result snapshots.Result) error {
+	if err := printChanges(output, result); err != nil {
 		return err
 	}
+	target := displayPath(root, result.Target)
+	switch {
+	case len(result.Changes) == 0:
+		_, err := fmt.Fprintf(output, "✓ %s is up to date.\n", target)
+		return err
+	case result.HasBlockingChanges():
+		count := result.BlockingChangeCount()
+		_, err := fmt.Fprintf(output, "✗ %s has %d blocking %s.\n", target, count, plural(count, "change", "changes"))
+		return err
+	default:
+		count := len(result.Changes)
+		_, err := fmt.Fprintf(output, "! Snapshot set and stable contents are unchanged; %d unstable content %s allowed.\n",
+			count, plural(count, "modification is", "modifications are"))
+		return err
+	}
+}
 
+func printUpdateResult(output io.Writer, root string, result snapshots.Result, skipUnstableOnly bool) error {
+	if err := printChanges(output, result); err != nil {
+		return err
+	}
+	target := displayPath(root, result.Target)
+	switch {
+	case skipUnstableOnly && result.UnstableOnly():
+		_, err := fmt.Fprintf(output, "✓ Skipped %s: source revision unchanged; %d unstable content %s not written.\n",
+			target, len(result.Changes), plural(len(result.Changes), "modification was", "modifications were"))
+		return err
+	case result.RevisionChanged() && len(result.Changes) == 0:
+		_, err := fmt.Fprintf(output, "✓ Updated source revision for %s; snapshot contents are unchanged.\n", target)
+		return err
+	case len(result.Changes) == 0:
+		_, err := fmt.Fprintf(output, "✓ %s is up to date.\n", target)
+		return err
+	default:
+		_, err := fmt.Fprintf(output, "✓ Updated %s.\n", target)
+		return err
+	}
+}
+
+func printChanges(output io.Writer, result snapshots.Result) error {
+	if len(result.Changes) == 0 {
+		if result.RevisionChanged() {
+			return printRevisionChange(output, result)
+		}
+		return nil
+	}
 	counts := make(map[snapshots.ChangeStatus]int)
 	unstableModified := 0
 	changeTable := table.NewWriter()
@@ -70,7 +106,7 @@ func printResult(output io.Writer, root string, mode snapshots.Mode, result snap
 	}
 	if _, err := fmt.Fprintf(
 		output,
-		"Summary: %d added · %d modified (%d probabilistic) · %d deleted\n",
+		"Summary: %d added · %d modified (%d unstable) · %d deleted\n",
 		counts[snapshots.ChangeAdded],
 		counts[snapshots.ChangeModified],
 		unstableModified,
@@ -83,36 +119,7 @@ func printResult(output io.Writer, root string, mode snapshots.Mode, result snap
 			return err
 		}
 	}
-
-	switch {
-	case (mode == snapshots.ModeUpdate || mode == snapshots.ModeSync) && !result.Written:
-		_, err := fmt.Fprintf(
-			output,
-			"✓ %s already matches its source revision; %d probabilistic content %s not written.\n",
-			target,
-			unstableModified,
-			plural(unstableModified, "modification was", "modifications were"),
-		)
-		return err
-	case mode == snapshots.ModeUpdate:
-		_, err := fmt.Fprintf(output, "✓ Updated %s.\n", target)
-		return err
-	case mode == snapshots.ModeSync:
-		_, err := fmt.Fprintf(output, "✓ Synced %s.\n", target)
-		return err
-	case result.HasBlockingChanges():
-		count := result.BlockingChangeCount()
-		_, err := fmt.Fprintf(output, "✗ %s has %d blocking %s.\n", target, count, plural(count, "change", "changes"))
-		return err
-	default:
-		_, err := fmt.Fprintf(
-			output,
-			"! Snapshot set and stable contents are unchanged; %d probabilistic content %s allowed.\n",
-			unstableModified,
-			plural(unstableModified, "modification is", "modifications are"),
-		)
-		return err
-	}
+	return nil
 }
 
 func printRevisionChange(output io.Writer, result snapshots.Result) error {

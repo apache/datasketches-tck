@@ -141,26 +141,3 @@ func encodeConfig(config repositoryConfig) ([]byte, error) {
 		config.Snapshot.Java.Commit,
 	)), nil
 }
-
-func replaceConfigFile(repositoryRoot string, content []byte) error {
-	target := filepath.Join(repositoryRoot, configFilename)
-	transaction, err := os.MkdirTemp(repositoryRoot, ".tck-config-")
-	if err != nil {
-		return fmt.Errorf("create config update transaction: %w", err)
-	}
-	defer func() { _ = os.RemoveAll(transaction) }()
-
-	next := filepath.Join(transaction, "next")
-	if err := os.WriteFile(next, content, 0o644); err != nil {
-		return fmt.Errorf("stage TCK config: %w", err)
-	}
-	previous := filepath.Join(transaction, "previous")
-	if err := os.Rename(target, previous); err != nil {
-		return fmt.Errorf("preserve current TCK config: %w", err)
-	}
-	if err := os.Rename(next, target); err != nil {
-		_ = os.Rename(previous, target)
-		return fmt.Errorf("install TCK config: %w", err)
-	}
-	return nil
-}

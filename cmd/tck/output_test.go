@@ -52,7 +52,7 @@ func TestPrintResultIncludesDetailedFileChanges(t *testing.T) {
 	}
 
 	var output bytes.Buffer
-	require.NoError(t, printResult(&output, root, snapshots.ModeCheck, result))
+	require.NoError(t, printCheckResult(&output, root, result))
 	snaps.WithConfig(snaps.Raw()).MatchSnapshot(t, output.String())
 }
 
@@ -70,11 +70,11 @@ func TestPrintResultAllowsOnlyUnstableModifications(t *testing.T) {
 	}
 
 	var output bytes.Buffer
-	require.NoError(t, printResult(&output, ".", snapshots.ModeCheck, result))
+	require.NoError(t, printCheckResult(&output, ".", result))
 	snaps.WithConfig(snaps.Raw()).MatchSnapshot(t, output.String())
 }
 
-func TestPrintResultReportsUnwrittenUpdate(t *testing.T) {
+func TestPrintUpdateResultReportsSkippedChanges(t *testing.T) {
 	t.Parallel()
 
 	before := testMetadata(12, 0xaa)
@@ -90,7 +90,7 @@ func TestPrintResultReportsUnwrittenUpdate(t *testing.T) {
 	}
 
 	var output bytes.Buffer
-	require.NoError(t, printResult(&output, ".", snapshots.ModeUpdate, result))
+	require.NoError(t, printUpdateResult(&output, ".", result, true))
 	snaps.WithConfig(snaps.Raw()).MatchSnapshot(t, output.String())
 }
 

@@ -6,8 +6,8 @@
 │ M      │ unstable  │ allow │ probabilistic.sk │ old 12 B · aaaaaaaaaaaa │
 │        │           │       │                  │ new 12 B · bbbbbbbbbbbb │
 ╰────────┴───────────┴───────┴──────────────────┴─────────────────────────╯
-Summary: 0 added · 1 modified (1 probabilistic) · 0 deleted
-! Snapshot set and stable contents are unchanged; 1 probabilistic content modification is allowed.
+Summary: 0 added · 1 modified (1 unstable) · 0 deleted
+! Snapshot set and stable contents are unchanged; 1 unstable content modification is allowed.
 
 ---
 
@@ -20,19 +20,19 @@ Summary: 0 added · 1 modified (1 probabilistic) · 0 deleted
 │        │           │       │             │ new 16 B · bbbbbbbbbbbb │
 │ D      │ stable    │ block │ deleted.sk  │ old 12 B · aaaaaaaaaaaa │
 ╰────────┴───────────┴───────┴─────────────┴─────────────────────────╯
-Summary: 1 added · 1 modified (1 probabilistic) · 1 deleted
+Summary: 1 added · 1 modified (1 unstable) · 1 deleted
 ✗ serialization_test_data/go_generated_files has 2 blocking changes.
 
 ---
 
-[TestPrintResultReportsUnwrittenUpdate - 1]
+[TestPrintUpdateResultReportsSkippedChanges - 1]
 ╭────────┬───────────┬───────┬──────────────────┬─────────────────────────╮
 │ CHANGE │ STABILITY │ CHECK │ SNAPSHOT         │ CONTENT (SIZE · SHA256) │
 ├────────┼───────────┼───────┼──────────────────┼─────────────────────────┤
 │ M      │ unstable  │ allow │ probabilistic.sk │ old 12 B · aaaaaaaaaaaa │
 │        │           │       │                  │ new 12 B · bbbbbbbbbbbb │
 ╰────────┴───────────┴───────┴──────────────────┴─────────────────────────╯
-Summary: 0 added · 1 modified (1 probabilistic) · 0 deleted
-✓ snapshots already matches its source revision; 1 probabilistic content modification was not written.
+Summary: 0 added · 1 modified (1 unstable) · 0 deleted
+✓ Skipped snapshots: source revision unchanged; 1 unstable content modification was not written.
 
 ---
