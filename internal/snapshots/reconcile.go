@@ -18,8 +18,8 @@
 package snapshots
 
 import (
+	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -27,21 +27,13 @@ import (
 	"path/filepath"
 )
 
-type Mode string
-
-const (
-	ModeCheck  Mode = "check"
-	ModeSync   Mode = "sync"
-	ModeUpdate Mode = "update"
-)
-
+// Result describes the generated revision and its differences from the existing
+// snapshot directory, including differences skipped by the update policy.
 type Result struct {
 	Target           string
 	PreviousRevision string
 	Revision         string
 	Changes          []Change
-	// Written reports whether the snapshot directory was replaced.
-	Written bool
 }
 
 func (result Result) RevisionChanged() bool {
@@ -62,214 +54,140 @@ func (result Result) BlockingChangeCount() int {
 	return count
 }
 
-func Reconcile(
-	ctx context.Context,
-	repositoryRoot, language string,
-	mode Mode,
-	requestedRevision string,
-	stdout, stderr io.Writer,
-) (Result, error) {
-	if mode != ModeCheck && mode != ModeSync && mode != ModeUpdate {
-		return Result{}, fmt.Errorf("unsupported reconciliation mode %q", mode)
-	}
-	generator, found := generators[language]
-	if !found {
-		return Result{}, fmt.Errorf("unsupported snapshot language %q", language)
-	}
-	if mode == ModeUpdate && requestedRevision == "" {
-		return Result{}, fmt.Errorf("a source revision is required in update mode")
-	}
-	if mode != ModeUpdate && requestedRevision != "" {
-		return Result{}, fmt.Errorf("a source revision can only be selected in update mode")
-	}
-	config, originalConfig, err := loadConfig(repositoryRoot)
+// UnstableOnly reports whether the only differences are content changes to
+// existing unstable snapshots. A revision change always requires an update.
+func (result Result) UnstableOnly() bool {
+	return !result.RevisionChanged() && len(result.Changes) > 0 && !result.HasBlockingChanges()
+}
+
+// Check regenerates a source at its configured commit without writing repository
+// files. Snapshot differences are returned in Result rather than as errors.
+func Check(ctx context.Context, root, language string, stdout, stderr io.Writer) (Result, error) {
+	config, _, err := loadConfig(root)
 	if err != nil {
 		return Result{}, err
 	}
 	source, found := config.source(language)
 	if !found {
-		return Result{}, fmt.Errorf("snapshot source for unsupported language %q", language)
+		return Result{}, fmt.Errorf("unsupported snapshot language %q", language)
 	}
-	sourceRevision := source.Commit
-	if requestedRevision != "" {
-		sourceRevision = requestedRevision
+	workspace, err := os.MkdirTemp("", "datasketches-tck-check-")
+	if err != nil {
+		return Result{}, err
 	}
-	for _, requirement := range generator.requirements {
+	defer func() { _ = os.RemoveAll(workspace) }()
+	return generate(ctx, root, workspace, language, source, source.Commit, commandRunner{stdout: stdout, stderr: stderr})
+}
+
+// Update generates every selected source before publishing any changes. Empty
+// language selects all sources; empty revision selects each remote's HEAD.
+// With skipUnstableOnly, unchanged revisions with only unstable content changes
+// retain their entire snapshot directory. Other sources are updated in full.
+func Update(ctx context.Context, root, language, revision string, skipUnstableOnly bool, stdout, stderr io.Writer) ([]Result, error) {
+	languages := Languages()
+	if language != "" {
+		languages = []string{language}
+	}
+	if revision == "" {
+		revision = "HEAD"
+	}
+	config, originalConfig, err := loadConfig(root)
+	if err != nil {
+		return nil, err
+	}
+	workspace, err := os.MkdirTemp("", "datasketches-tck-update-")
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = os.RemoveAll(workspace) }()
+
+	var results []Result
+	var replacements []replacement
+	revisionChanged := false
+	for _, language := range languages {
+		source, found := config.source(language)
+		if !found {
+			return nil, fmt.Errorf("unsupported snapshot language %q", language)
+		}
+		directory := filepath.Join(workspace, language)
+		result, err := generate(ctx, root, directory, language, source, revision, commandRunner{stdout: stdout, stderr: stderr})
+		if err != nil {
+			return nil, fmt.Errorf("update aborted before publishing: %w", err)
+		}
+		results = append(results, result)
+		if skipUnstableOnly && result.UnstableOnly() {
+			continue
+		}
+		if result.RevisionChanged() {
+			if err := config.setCommit(language, result.Revision); err != nil {
+				return nil, err
+			}
+			revisionChanged = true
+		}
+		if len(result.Changes) > 0 {
+			replacements = append(replacements, replacement{
+				target: result.Target,
+				source: filepath.Join(directory, "generated"),
+			})
+		}
+	}
+	if revisionChanged {
+		content, err := encodeConfig(config)
+		if err != nil {
+			return nil, err
+		}
+		nextConfig := filepath.Join(workspace, configFilename)
+		if err := os.WriteFile(nextConfig, content, 0o644); err != nil {
+			return nil, err
+		}
+		replacements = append(replacements, replacement{target: filepath.Join(root, configFilename), source: nextConfig})
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	// A long-running generation must not overwrite a pin edited in the meantime.
+	currentConfig, err := os.ReadFile(filepath.Join(root, configFilename))
+	if err != nil {
+		return nil, err
+	}
+	if !bytes.Equal(currentConfig, originalConfig) {
+		return nil, fmt.Errorf("config.toml changed during generation; no updates were published")
+	}
+	if err := publish(root, replacements, stderr); err != nil {
+		return nil, err
+	}
+	return results, nil
+}
+
+func generate(ctx context.Context, root, workspace, language string, source snapshotSource, revision string, runner commandRunner) (Result, error) {
+	definition, found := generators[language]
+	if !found {
+		return Result{}, fmt.Errorf("unsupported snapshot language %q", language)
+	}
+	for _, requirement := range definition.requirements {
 		if _, err := exec.LookPath(requirement); err != nil {
 			return Result{}, fmt.Errorf("required command %q is not installed or not on PATH", requirement)
 		}
 	}
-
-	workspace, err := os.MkdirTemp("", "datasketches-tck-"+language+"-")
-	if err != nil {
-		return Result{}, fmt.Errorf("create generator workspace: %w", err)
+	if err := os.MkdirAll(workspace, 0o755); err != nil {
+		return Result{}, err
 	}
-	defer func() { _ = os.RemoveAll(workspace) }()
-
+	if _, err := fmt.Fprintf(runner.stdout, "Generate %s snapshots\n", language); err != nil {
+		return Result{}, err
+	}
 	generated := filepath.Join(workspace, "generated")
-	runner := commandRunner{stdout: stdout, stderr: stderr}
-	resolvedRevision, err := generator.run(
-		ctx,
-		workspace,
-		generated,
-		source.Repository,
-		sourceRevision,
-		runner,
-	)
+	resolvedRevision, err := definition.run(ctx, workspace, generated, source.Repository, revision, runner)
 	if err != nil {
 		return Result{}, fmt.Errorf("generate %s snapshots: %w", language, err)
 	}
-
-	target := snapshotDirectory(repositoryRoot, language)
-	changes, err := compareDirectories(target, generated, generator.stability)
+	target := snapshotDirectory(root, language)
+	changes, err := compareDirectories(target, generated, definition.stability)
 	if err != nil {
 		return Result{}, err
 	}
-
-	result := Result{
-		Target:           target,
-		PreviousRevision: source.Commit,
-		Revision:         resolvedRevision,
-		Changes:          changes,
-	}
-	if mode == ModeCheck {
-		return result, nil
-	}
-	if mode == ModeSync {
-		if len(changes) > 0 {
-			if err := replaceDirectory(target, generated); err != nil {
-				return Result{}, err
-			}
-			result.Written = true
-		}
-		return result, nil
-	}
-
-	revisionChanged := result.RevisionChanged()
-	if !revisionChanged && !result.HasBlockingChanges() {
-		// Nothing new upstream. Rewriting the probabilistic snapshots would only
-		// add binary churn to the history without adopting anything.
-		return result, nil
-	}
-	if revisionChanged {
-		if err := config.setCommit(language, resolvedRevision); err != nil {
-			return Result{}, err
-		}
-		updatedConfig, err := encodeConfig(config)
-		if err != nil {
-			return Result{}, err
-		}
-		if err := replaceConfigFile(repositoryRoot, updatedConfig); err != nil {
-			return Result{}, err
-		}
-	}
-	if len(changes) > 0 {
-		if err := replaceDirectory(target, generated); err != nil {
-			if !revisionChanged {
-				return Result{}, err
-			}
-			if restoreErr := replaceConfigFile(repositoryRoot, originalConfig); restoreErr != nil {
-				return Result{}, fmt.Errorf(
-					"%w; restoring the previous config also failed: %v",
-					err,
-					restoreErr,
-				)
-			}
-			return Result{}, err
-		}
-		result.Written = true
-	}
-	return result, nil
+	return Result{Target: target, PreviousRevision: source.Commit, Revision: resolvedRevision, Changes: changes}, nil
 }
 
-// snapshotDirectory returns where a language's snapshots are committed. The
-// serialization_test_data/<language>_generated_files layout matches the
-// DataSketches implementation repositories, so a TCK checkout can be used
-// directly as their test data root.
-func snapshotDirectory(repositoryRoot, language string) string {
-	return filepath.Join(repositoryRoot, "serialization_test_data", language+"_generated_files")
-}
-
-func replaceDirectory(target, generated string) error {
-	parent := filepath.Dir(target)
-	if err := os.MkdirAll(parent, 0o755); err != nil {
-		return fmt.Errorf("create snapshot parent directory: %w", err)
-	}
-
-	transaction, err := os.MkdirTemp(parent, "."+filepath.Base(target)+"-tck-")
-	if err != nil {
-		return fmt.Errorf("create snapshot update transaction: %w", err)
-	}
-	removeTransaction := true
-	defer func() {
-		if removeTransaction {
-			_ = os.RemoveAll(transaction)
-		}
-	}()
-
-	next := filepath.Join(transaction, "next")
-	if err := copyDirectory(generated, next); err != nil {
-		return fmt.Errorf("stage generated snapshots: %w", err)
-	}
-
-	previous := filepath.Join(transaction, "previous")
-	hadTarget := false
-	info, err := os.Lstat(target)
-	switch {
-	case err == nil:
-		if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-			return fmt.Errorf("replace snapshots: %s is not a directory", target)
-		}
-		hadTarget = true
-		if err := os.Rename(target, previous); err != nil {
-			return fmt.Errorf("preserve current snapshots: %w", err)
-		}
-	case os.IsNotExist(err):
-	case err != nil:
-		return fmt.Errorf("inspect snapshots before update: %w", err)
-	}
-
-	if err := os.Rename(next, target); err != nil {
-		if !hadTarget {
-			return fmt.Errorf("install generated snapshots: %w", err)
-		}
-		if restoreErr := os.Rename(previous, target); restoreErr == nil {
-			return fmt.Errorf("install generated snapshots: %w", err)
-		} else {
-			removeTransaction = false
-			return fmt.Errorf(
-				"install generated snapshots: %w; restoring previous snapshots also failed: %v; previous files remain at %s",
-				err,
-				restoreErr,
-				previous,
-			)
-		}
-	}
-
-	if hadTarget {
-		if err := os.RemoveAll(previous); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("remove previous snapshots after update: %w", err)
-		}
-	}
-	return nil
-}
-
-func copyDirectory(source, destination string) error {
-	files, err := regularFiles(source)
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(destination, 0o755); err != nil {
-		return err
-	}
-	for relative, file := range files {
-		output := filepath.Join(destination, filepath.FromSlash(relative))
-		if err := os.MkdirAll(filepath.Dir(output), 0o755); err != nil {
-			return err
-		}
-		if err := copyFile(file.filename, output); err != nil {
-			return err
-		}
-	}
-	return nil
+func snapshotDirectory(root, language string) string {
+	return filepath.Join(root, "serialization_test_data", language+"_generated_files")
 }

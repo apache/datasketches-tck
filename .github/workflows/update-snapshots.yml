@@ -48,24 +48,19 @@ jobs:
       - name: Update snapshots
         id: update
         shell: bash
+        run: mise run tck -- snapshots update --skip-unstable-only 2>&1 | tee "$RUNNER_TEMP/snapshot-update.log"
+
+      - name: Summarize update
+        if: always() && steps.update.outcome != 'skipped'
         run: |
-          status=0
-          for language in cpp go java; do
-            if ! mise run tck -- snapshots update "$language" HEAD 2>&1 | tee -a update.log; then
-              status=1
-            fi
-          done
-          echo "status=${status}" >> "$GITHUB_OUTPUT"
           {
             echo '## Snapshot update'
             echo
             echo '```'
-            grep -E '^(Update |Summary:|Source revision:|✓|✗|Error:)' update.log || true
+            grep -E '^(Update |Summary:|Source revision:|✓|✗|Warning:|Error:)' "$RUNNER_TEMP/snapshot-update.log" || true
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # Sources that updated successfully are published even when another
-      # source failed, so one broken upstream does not hold back the others.
       - name: Commit updated snapshots
         run: |
           if [[ -z "$(git status --porcelain -- config.toml serialization_test_data)" ]]; then
@@ -78,13 +73,7 @@ jobs:
           {
             echo "chore: update snapshots to the latest upstream revisions"
             echo
-            grep -E '^(Update |Summary:|Source revision:)' update.log || true
-          } > commit-message.txt
-          git commit --quiet --file commit-message.txt
+            grep -E '^(Update |Summary:|Source revision:)' "$RUNNER_TEMP/snapshot-update.log" || true
+          } > "$RUNNER_TEMP/snapshot-commit-message.txt"
+          git commit --quiet --file "$RUNNER_TEMP/snapshot-commit-message.txt"
           git push origin HEAD:${{ github.ref_name }}
-
-      - name: Report failed sources
-        if: steps.update.outputs.status != '0'
-        run: |
-          grep -E '^(✗|Error:)' update.log || true
-          exit 1

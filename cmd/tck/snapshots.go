@@ -24,6 +24,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/apache/datasketches-tck/internal/snapshots"
@@ -43,152 +44,95 @@ func newSnapshotsCommand() *cobra.Command {
 	}
 	command.AddCommand(
 		newSnapshotCheckCommand(),
-		newSnapshotSyncCommand(),
 		newSnapshotUpdateCommand(),
 	)
 	return command
 }
 
 func newSnapshotCheckCommand() *cobra.Command {
-	validLanguages := append(snapshots.Languages(), "all")
 	return &cobra.Command{
 		Use:       "check <cpp|go|java|all>",
-		Short:     reconcileDescription(snapshots.ModeCheck),
-		Long:      reconcileDetails(snapshots.ModeCheck),
+		Short:     "Check the snapshot set and stable snapshot contents",
+		Long:      "Regenerate snapshots at the configured commits without writing files. Additions, deletions, and stable content changes fail the check; unstable content changes are allowed.",
 		Args:      cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),
-		ValidArgs: validLanguages,
+		ValidArgs: append(snapshots.Languages(), "all"),
 		RunE: func(command *cobra.Command, args []string) error {
+			root, err := repositoryRoot(command.Context())
+			if err != nil {
+				return err
+			}
 			languages := []string{args[0]}
 			if args[0] == "all" {
 				languages = snapshots.Languages()
 			}
-			return reconcileSnapshots(command, snapshots.ModeCheck, languages, "")
-		},
-	}
-}
-
-func newSnapshotSyncCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "sync",
-		Short: reconcileDescription(snapshots.ModeSync),
-		Long:  reconcileDetails(snapshots.ModeSync),
-		Args:  cobra.NoArgs,
-		RunE: func(command *cobra.Command, _ []string) error {
-			return reconcileSnapshots(command, snapshots.ModeSync, snapshots.Languages(), "")
+			outOfDate := false
+			for _, language := range languages {
+				result, err := snapshots.Check(command.Context(), root, language, command.OutOrStdout(), command.ErrOrStderr())
+				if err != nil {
+					return err
+				}
+				if _, err := fmt.Fprintf(command.OutOrStdout(), "\nCheck %s snapshots\n", languageHeading(language)); err != nil {
+					return err
+				}
+				if err := printCheckResult(command.OutOrStdout(), root, result); err != nil {
+					return err
+				}
+				outOfDate = outOfDate || result.HasBlockingChanges()
+			}
+			if outOfDate {
+				return errSnapshotsOutOfDate
+			}
+			return nil
 		},
 	}
 }
 
 func newSnapshotUpdateCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "update <cpp|go|java> <revision>",
-		Short: reconcileDescription(snapshots.ModeUpdate),
-		Long:  reconcileDetails(snapshots.ModeUpdate),
+	var skipUnstableOnly bool
+	command := &cobra.Command{
+		Use:   "update [cpp|go|java] [revision]",
+		Short: "Update snapshots and source revisions together",
+		Long:  "Update all sources to their remote HEADs, or select one language and optionally a branch, tag, or commit. All selected sources are generated before any snapshots or pins are published.",
 		Args: func(command *cobra.Command, args []string) error {
-			if err := cobra.ExactArgs(2)(command, args); err != nil {
+			if err := cobra.RangeArgs(0, 2)(command, args); err != nil {
 				return err
 			}
-			for _, language := range snapshots.Languages() {
-				if args[0] == language {
-					return nil
-				}
+			if len(args) > 0 && !slices.Contains(snapshots.Languages(), args[0]) {
+				return fmt.Errorf("unsupported snapshot language %q", args[0])
 			}
-			return fmt.Errorf("unsupported snapshot language %q", args[0])
+			return nil
 		},
 		ValidArgs: snapshots.Languages(),
 		RunE: func(command *cobra.Command, args []string) error {
-			return reconcileSnapshots(command, snapshots.ModeUpdate, []string{args[0]}, args[1])
+			root, err := repositoryRoot(command.Context())
+			if err != nil {
+				return err
+			}
+			language, revision := "", ""
+			if len(args) > 0 {
+				language = args[0]
+			}
+			if len(args) > 1 {
+				revision = args[1]
+			}
+			results, err := snapshots.Update(command.Context(), root, language, revision, skipUnstableOnly, command.OutOrStdout(), command.ErrOrStderr())
+			if err != nil {
+				return err
+			}
+			for _, result := range results {
+				if _, err := fmt.Fprintf(command.OutOrStdout(), "\nUpdate %s\n", displayPath(root, result.Target)); err != nil {
+					return err
+				}
+				if err := printUpdateResult(command.OutOrStdout(), root, result, skipUnstableOnly); err != nil {
+					return err
+				}
+			}
+			return nil
 		},
 	}
-}
-
-func reconcileSnapshots(
-	command *cobra.Command,
-	mode snapshots.Mode,
-	languages []string,
-	requestedRevision string,
-) error {
-	root, err := repositoryRoot(command.Context())
-	if err != nil {
-		return err
-	}
-
-	outOfDate := false
-	for index, language := range languages {
-		if index > 0 {
-			if _, err := fmt.Fprintln(command.OutOrStdout()); err != nil {
-				return fmt.Errorf("separate snapshot results: %w", err)
-			}
-		}
-		if _, err := fmt.Fprintf(
-			command.OutOrStdout(),
-			"%s %s snapshots\n",
-			modeHeading(mode),
-			languageHeading(language),
-		); err != nil {
-			return fmt.Errorf("print snapshot heading: %w", err)
-		}
-
-		result, err := snapshots.Reconcile(
-			command.Context(),
-			root,
-			language,
-			mode,
-			requestedRevision,
-			command.OutOrStdout(),
-			command.ErrOrStderr(),
-		)
-		if err != nil {
-			return err
-		}
-		if err := printResult(command.OutOrStdout(), root, mode, result); err != nil {
-			return fmt.Errorf("print snapshot result: %w", err)
-		}
-		outOfDate = outOfDate || (mode == snapshots.ModeCheck && result.HasBlockingChanges())
-	}
-	if outOfDate {
-		return errSnapshotsOutOfDate
-	}
-	return nil
-}
-
-func reconcileDescription(mode snapshots.Mode) string {
-	switch mode {
-	case snapshots.ModeCheck:
-		return "Check the snapshot set and stable snapshot contents"
-	case snapshots.ModeSync:
-		return "Synchronize snapshots from config.toml"
-	case snapshots.ModeUpdate:
-		return "Adopt one upstream revision and update its snapshots"
-	default:
-		panic(fmt.Sprintf("unsupported snapshot mode %q", mode))
-	}
-}
-
-func reconcileDetails(mode snapshots.Mode) string {
-	switch mode {
-	case snapshots.ModeCheck:
-		return "Generate snapshots and verify that the file set and stable contents match. Content changes to existing probabilistic snapshots are reported but do not fail the check."
-	case snapshots.ModeSync:
-		return "Regenerate all snapshot directories from the repositories and commits in config.toml without changing the config."
-	case snapshots.ModeUpdate:
-		return "Resolve an upstream commit, branch, or tag, record its exact commit ID in config.toml, and regenerate that source's snapshots. Snapshots are left untouched when the revision is unchanged and only probabilistic snapshots differ."
-	default:
-		panic(fmt.Sprintf("unsupported snapshot mode %q", mode))
-	}
-}
-
-func modeHeading(mode snapshots.Mode) string {
-	switch mode {
-	case snapshots.ModeCheck:
-		return "Check"
-	case snapshots.ModeSync:
-		return "Sync"
-	case snapshots.ModeUpdate:
-		return "Update"
-	default:
-		panic(fmt.Sprintf("unsupported snapshot mode %q", mode))
-	}
+	command.Flags().BoolVar(&skipUnstableOnly, "skip-unstable-only", false,
+		"Skip a source when its revision is unchanged and only existing unstable snapshots differ")
+	return command
 }
 
 func languageHeading(language string) string {
