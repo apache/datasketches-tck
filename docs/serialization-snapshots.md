@@ -41,11 +41,11 @@ mise run tck -- snapshots update
 
 Update is the only command that writes snapshots. It accepts an optional language and, after that, an optional revision:
 
-| Command | Sources and revisions |
-| --- | --- |
-| `snapshots update` | All available languages at their remote `HEAD` |
-| `snapshots update go` | Go at its remote `HEAD` |
-| `snapshots update go HEAD` | The same explicit selection |
+| Command                      | Sources and revisions                                      |
+|------------------------------|------------------------------------------------------------|
+| `snapshots update`           | All available languages at their remote `HEAD`             |
+| `snapshots update go`        | Go at its remote `HEAD`                                    |
+| `snapshots update go HEAD`   | The same explicit selection                                |
 | `snapshots update go v0.2.0` | Go at the specified tag; branches and commit IDs also work |
 
 A revision can only be supplied after a language. To regenerate or repair snapshots at an existing pin, pass the commit recorded in `config.toml` explicitly. Updating to an older revision follows the same process as updating to a newer one. If the upstream build or output layout changed, update the corresponding adapter in `internal/snapshots/<language>.go` before running the command.
@@ -64,13 +64,13 @@ mise run tck -- snapshots update go v0.2.0 --skip-unstable-only
 
 The option applies independently to each selected language. It skips that source's entire update; it never filters individual files from an adopted snapshot set. A revision change, any added or deleted file, or any stable content change causes the complete generated snapshot set to be adopted, including its unstable files. The report identifies skipped sources and shows observed differences even when they were not written.
 
-| Source revision | Snapshot differences | Default | With `--skip-unstable-only` |
-| --- | --- | --- | --- |
-| Unchanged | None | No changes | No changes |
-| Unchanged | Only existing unstable contents | Replace snapshots | Keep the existing snapshots |
-| Unchanged | Additions, deletions, or stable contents | Replace snapshots | Replace snapshots |
-| Changed | None | Update the pin | Update the pin |
-| Changed | Any | Update the pin and snapshots | Update the pin and snapshots |
+| Source revision | Snapshot differences                     | Default                      | With `--skip-unstable-only`  |
+|-----------------|------------------------------------------|------------------------------|------------------------------|
+| Unchanged       | None                                     | No changes                   | No changes                   |
+| Unchanged       | Only existing unstable contents          | Replace snapshots            | Keep the existing snapshots  |
+| Unchanged       | Additions, deletions, or stable contents | Replace snapshots            | Replace snapshots            |
+| Changed         | None                                     | Update the pin               | Update the pin               |
+| Changed         | Any                                      | Update the pin and snapshots | Update the pin and snapshots |
 
 ### Publication and failures
 
