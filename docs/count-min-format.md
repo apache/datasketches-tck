@@ -95,7 +95,7 @@ A byte array is hashed as the bytes given, in order.
 
 ### 4.4 Null and empty items (placeholder)
 
-**Version 2 rule:** an empty string, an empty byte array (zero length, such as Java `new byte[0]`), and a null, in languages that have one, are all ignored. An update does nothing, and a query returns 0.
+**Version 2 rule:** an empty string, an empty byte array (zero length, such as Java `new byte[0]`), and a null, in languages that have one, are all ignored. An update does nothing, and every query (estimate, lower bound, and upper bound) returns 0.
 
 **Pending (Discussion #20):** a shared policy for every family, covering:
 - how a reader or an update interprets a null item;
@@ -245,7 +245,7 @@ A reader checks each file from another language as follows:
 - It deserializes with the file's seed and reports serial version 2, `numHashes` 3 and `numBuckets` 1000.
 - It is empty if and only if `N` = 0.
 - The total weight is `N × (N + 1) / 2 + N`.
-- For each `i` from 0 to `N - 1`, the estimate for integer `i` is at least `i + 1`, and the estimate for the string of `i` is at least 1. All weights are positive, so a Count-Min sketch never underestimates. Each estimate is also at most its upper bound.
+- For each `i` from 0 to `N - 1`, the estimate for integer `i` is at least `i + 1`, and the estimate for the string of `i` is at least 1. All weights are positive, so a Count-Min sketch never underestimates. Each estimate is also at most the upper bound returned by the sketch for that item.
 - If the reader's own language has generated the same case, the two files are equal byte for byte. This is the strongest check, because it covers the row seeds, item encoding and bucket mapping at once.
 
 ### 8.3 Version 1 files
