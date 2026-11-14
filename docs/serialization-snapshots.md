@@ -28,7 +28,7 @@ The `main` branch of this repository publishes self-tested snapshot updates from
 ```toml
 [snapshot.go]
 repository = "https://github.com/apache/datasketches-go.git"
-commit = "730c0ca31e00b8becf8b70591ae8ca73954912d0"
+commit = "c9701e7d4c76952c615c3f2938f7d61bf126b561"
 ```
 
 ## Update snapshots
