@@ -23,4 +23,4 @@ commit = "c9701e7d4c76952c615c3f2938f7d61bf126b561"
 
 [snapshot.java]
 repository = "https://github.com/apache/datasketches-java.git"
-commit = "059b5a9ccf15f4036a50624cc910128e6b015636"
+commit = "fe31572f5190d728e88c651dfd8db1b89af154fc"
