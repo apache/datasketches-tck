@@ -47,6 +47,15 @@ func TestSnapshotStability(t *testing.T) {
 		{name: "go reservoir sampling mode", stability: goStability, path: "reservoir_items_long_sampling_n1000_k128_go.sk", expected: Unstable},
 		{name: "go compacted REQ", stability: goStability, path: "req_float_n100_go.sk", expected: Unstable},
 		{name: "go varopt union sampling", stability: goStability, path: "varopt_union_double_sampling_go.sk", expected: Unstable},
+		{name: "rust fixed-seed bloom filter", stability: rustStability, path: "bf_n10000_h3_rust.sk", expected: Stable},
+		{name: "rust deterministic count-min v2", stability: rustStability, path: "count_min_v2_n1000_rust.sk", expected: Stable},
+		{name: "rust deterministic xor filter", stability: rustStability, path: "xor16_n100000_rust.sk", expected: Stable},
+		{name: "rust exact density", stability: rustStability, path: "density_double_n10_rust.sk", expected: Stable},
+		{name: "rust compacted density", stability: rustStability, path: "density_double_n100_rust.sk", expected: Unstable},
+		{name: "rust exact KLL", stability: rustStability, path: "kll_string_n100_rust.sk", expected: Stable},
+		{name: "rust compacted KLL", stability: rustStability, path: "kll_string_n1000_rust.sk", expected: Unstable},
+		{name: "rust exact REQ", stability: rustStability, path: "req_float_mixed_n10_rust.sk", expected: Stable},
+		{name: "rust compacted REQ", stability: rustStability, path: "req_float_n100_rust.sk", expected: Unstable},
 	}
 
 	for _, test := range tests {

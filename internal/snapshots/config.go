@@ -56,6 +56,7 @@ type snapshotSources struct {
 	CPP  snapshotSource `toml:"cpp"`
 	Go   snapshotSource `toml:"go"`
 	Java snapshotSource `toml:"java"`
+	Rust snapshotSource `toml:"rust"`
 }
 
 type snapshotSource struct {
@@ -105,6 +106,8 @@ func (config repositoryConfig) source(language string) (snapshotSource, bool) {
 		return config.Snapshot.Go, true
 	case "java":
 		return config.Snapshot.Java, true
+	case "rust":
+		return config.Snapshot.Rust, true
 	default:
 		return snapshotSource{}, false
 	}
@@ -118,6 +121,8 @@ func (config *repositoryConfig) setCommit(language, commit string) error {
 		config.Snapshot.Go.Commit = commit
 	case "java":
 		config.Snapshot.Java.Commit = commit
+	case "rust":
+		config.Snapshot.Rust.Commit = commit
 	default:
 		return fmt.Errorf("unsupported snapshot language %q", language)
 	}
@@ -131,7 +136,8 @@ func encodeConfig(config repositoryConfig) ([]byte, error) {
 	return []byte(fmt.Sprintf(
 		"%s[snapshot.cpp]\nrepository = %q\ncommit = %q\n\n"+
 			"[snapshot.go]\nrepository = %q\ncommit = %q\n\n"+
-			"[snapshot.java]\nrepository = %q\ncommit = %q\n",
+			"[snapshot.java]\nrepository = %q\ncommit = %q\n\n"+
+			"[snapshot.rust]\nrepository = %q\ncommit = %q\n",
 		configFileHeader,
 		config.Snapshot.CPP.Repository,
 		config.Snapshot.CPP.Commit,
@@ -139,5 +145,7 @@ func encodeConfig(config repositoryConfig) ([]byte, error) {
 		config.Snapshot.Go.Commit,
 		config.Snapshot.Java.Repository,
 		config.Snapshot.Java.Commit,
+		config.Snapshot.Rust.Repository,
+		config.Snapshot.Rust.Commit,
 	)), nil
 }

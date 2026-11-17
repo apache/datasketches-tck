@@ -54,6 +54,11 @@ var generators = map[string]generator{
 		generate:     generateJava,
 		stability:    javaStability,
 	},
+	"rust": {
+		requirements: []string{"git", "cargo"},
+		generate:     generateRust,
+		stability:    rustStability,
+	},
 }
 
 func Languages() []string {

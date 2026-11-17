@@ -122,9 +122,9 @@ mise install
 mise run tck -- snapshots --help
 ```
 
-Mise supplies Go, CMake and CTest, Java, and Maven. Git is required for every source language, a C++ compiler is required for C++, and Make is required for Go.
+Mise supplies Go, CMake and CTest, Java, Maven, and Rust. Git is required for every source language, a C++ compiler is required for C++, and Make is required for Go.
 
-Check accepts `cpp`, `go`, `java`, or `all` and is always read-only. Update defaults to all languages at `HEAD`; specifying a language limits the update to that source, and a second argument selects its revision. The former `snapshots sync` command is replaced by `snapshots update <language> <recorded-commit>`.
+Check accepts `cpp`, `go`, `java`, `rust`, or `all` and is always read-only. Update defaults to all languages at `HEAD`; specifying a language limits the update to that source, and a second argument selects its revision. The former `snapshots sync` command is replaced by `snapshots update <language> <recorded-commit>`.
 
 ## Use the corpus from an implementation
 

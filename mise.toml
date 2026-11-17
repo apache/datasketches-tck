@@ -19,6 +19,7 @@ go = "1.26.5"
 golangci-lint = "2.12.2"
 java = "temurin-25.0.2+10.0.LTS"
 maven = "3.9.16"
+rust = "1.100.0"
 
 [tasks.tck]
 description = "Run the repository-local DataSketches TCK CLI"
