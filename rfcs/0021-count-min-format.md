@@ -15,7 +15,9 @@
   limitations under the License.
 -->
 
-# Count-Min sketch: serialization format, version 2
+# RFC 0021: Count-Min serialization format v2
+
+Originating pull request: [#21](https://github.com/apache/datasketches-tck/pull/21).
 
 **Status:** adopted. The design was agreed by lazy consensus in [Discussion #18](https://github.com/apache/datasketches-tck/discussions/18), which closed on 2026-10-25. This spec was posted there on 2026-11-02, and no objections were raised by the 2026-11-09 deadline.
 
@@ -25,29 +27,29 @@ Version 2 differs from version 1 only in the serial version byte and in the hash
 
 ## 1. Parameters
 
-| Parameter | Type | Valid range |
-|---|---|---|
-| `numHashes` (rows) | unsigned 8-bit | 1 to 127 (Java and Go store it as a signed byte) |
-| `numBuckets` (columns) | unsigned 32-bit | at least 3, and `numHashes × numBuckets < 2^30` |
-| `seed` (base seed) | 64-bit | any; the library default is 9001 |
+| Parameter              | Type            | Valid range                                      |
+|------------------------|-----------------|--------------------------------------------------|
+| `numHashes` (rows)     | unsigned 8-bit  | 1 to 127 (Java and Go store it as a signed byte) |
+| `numBuckets` (columns) | unsigned 32-bit | at least 3, and `numHashes × numBuckets < 2^30`  |
+| `seed` (base seed)     | 64-bit          | any; the library default is 9001                 |
 
 ## 2. Byte layout
 
 All multi-byte fields are little-endian.
 
-| Byte offset | Size | Field | Value |
-|---:|---:|---|---|
-| 0 | 1 | preamble longs | 2 |
-| 1 | 1 | serial version | **2** |
-| 2 | 1 | family ID | 18 (Count-Min) |
-| 3 | 1 | flags | bit 0: `IS_EMPTY`; other bits 0 |
-| 4 | 4 | unused | 0 |
-| 8 | 4 | `numBuckets` | unsigned 32-bit |
-| 12 | 1 | `numHashes` | unsigned 8-bit |
-| 13 | 2 | seed hash | the standard DataSketches 16-bit seed hash of `seed`, as used by Theta; 9001 gives `0x93CC` |
-| 15 | 1 | unused | 0 |
-| 16 | 8 | total weight | signed 64-bit; present only if not empty |
-| 24 | 8 × `numHashes` × `numBuckets` | counters | signed 64-bit each; present only if not empty |
+| Byte offset |                           Size | Field          | Value                                                                                       |
+|------------:|-------------------------------:|----------------|---------------------------------------------------------------------------------------------|
+|           0 |                              1 | preamble longs | 2                                                                                           |
+|           1 |                              1 | serial version | **2**                                                                                       |
+|           2 |                              1 | family ID      | 18 (Count-Min)                                                                              |
+|           3 |                              1 | flags          | bit 0: `IS_EMPTY`; other bits 0                                                             |
+|           4 |                              4 | unused         | 0                                                                                           |
+|           8 |                              4 | `numBuckets`   | unsigned 32-bit                                                                             |
+|          12 |                              1 | `numHashes`    | unsigned 8-bit                                                                              |
+|          13 |                              2 | seed hash      | the standard DataSketches 16-bit seed hash of `seed`, as used by Theta; 9001 gives `0x93CC` |
+|          15 |                              1 | unused         | 0                                                                                           |
+|          16 |                              8 | total weight   | signed 64-bit; present only if not empty                                                    |
+|          24 | 8 × `numHashes` × `numBuckets` | counters       | signed 64-bit each; present only if not empty                                               |
 
 - A sketch is empty when its total weight is 0. An empty image is exactly 16 bytes and has `IS_EMPTY` set.
 - A non-empty image is `24 + 8 × numHashes × numBuckets` bytes.
@@ -77,10 +79,10 @@ Sections 4.4 to 4.6 are placeholders for input rules that apply to every DataSke
 
 ### 4.1 Integers
 
-| Item type | Bytes hashed |
-|---|---|
-| 64-bit integer, signed or unsigned | 8 bytes, little-endian, two's complement |
-| Narrower integer | widened to 64 bits first (sign-extended if signed), then as above |
+| Item type                          | Bytes hashed                                                      |
+|------------------------------------|-------------------------------------------------------------------|
+| 64-bit integer, signed or unsigned | 8 bytes, little-endian, two's complement                          |
+| Narrower integer                   | widened to 64 bits first (sign-extended if signed), then as above |
 
 ### 4.2 Strings
 
@@ -143,30 +145,30 @@ These were computed with the DataSketches Java `XxHash64`. The bucket results fo
 
 ### 7.1 XXH64
 
-| Input | Seed | XXH64 |
-|---|---:|---|
-| empty | 0 | `0xEF46DB3751D8E999` |
-| `"a"` | 0 | `0xD24EC4F1A98C6E5B` |
-| `"abc"` | 0 | `0x44BC2CF5AD770999` |
+| Input   | Seed | XXH64                |
+|---------|-----:|----------------------|
+| empty   |    0 | `0xEF46DB3751D8E999` |
+| `"a"`   |    0 | `0xD24EC4F1A98C6E5B` |
+| `"abc"` |    0 | `0x44BC2CF5AD770999` |
 
 ### 7.2 Row seeds
 
-| Base seed | Row 0 | Row 1 | Row 2 |
-|---:|---|---|---|
-| 9001 | `0xD71D64972584A288` | `0xEFE8454A6499F311` | `0x23819BE21B1B1D9E` |
-| 42 | `0xB71B47EBDA15746C` | `0x9ED50FD59358D232` | `0xD19FE30002B9A3CD` |
+| Base seed | Row 0                | Row 1                | Row 2                |
+|----------:|----------------------|----------------------|----------------------|
+|      9001 | `0xD71D64972584A288` | `0xEFE8454A6499F311` | `0x23819BE21B1B1D9E` |
+|        42 | `0xB71B47EBDA15746C` | `0x9ED50FD59358D232` | `0xD19FE30002B9A3CD` |
 
 ### 7.3 Item hashes and buckets
 
 Base seed 9001, `numBuckets` = 1000. Each cell shows `XXH64(item, rowSeed[i])` and the bucket.
 
-| Item | Row 0 | Row 1 | Row 2 |
-|---|---|---|---|
-| integer 1 | `0x9578D22909AB6393` → 185 | `0x73BE69FFC52746B5` → 898 | `0xA16D5BA2EA9D92A9` → 4 |
-| integer 9 | `0xE351D001EE0C0725` → 490 | `0x74AB8E217F6C0193` → 217 | `0x4E02535F97CE07D1` → 440 |
-| integer -1 | `0x295F6FF9D5F0A170` → 256 | `0x693A5A4C04C19D72` → 641 | `0xC3095F604CF42A69` → 308 |
-| integer `0x8000000000000000` | `0x69DD53CB2E1960EE` → 951 | `0xBE1283E430FCA711` → 0 | `0x62BD4CDD3889A7D5` → 298 |
-| string `"apple"` | `0x0F686B647380AF74` → 130 | `0x25329624EF6A5FF6` → 747 | `0x501EE67250FD0E21` → 144 |
+| Item                                    | Row 0                      | Row 1                      | Row 2                      |
+|-----------------------------------------|----------------------------|----------------------------|----------------------------|
+| integer 1                               | `0x9578D22909AB6393` → 185 | `0x73BE69FFC52746B5` → 898 | `0xA16D5BA2EA9D92A9` → 4   |
+| integer 9                               | `0xE351D001EE0C0725` → 490 | `0x74AB8E217F6C0193` → 217 | `0x4E02535F97CE07D1` → 440 |
+| integer -1                              | `0x295F6FF9D5F0A170` → 256 | `0x693A5A4C04C19D72` → 641 | `0xC3095F604CF42A69` → 308 |
+| integer `0x8000000000000000`            | `0x69DD53CB2E1960EE` → 951 | `0xBE1283E430FCA711` → 0   | `0x62BD4CDD3889A7D5` → 298 |
+| string `"apple"`                        | `0x0F686B647380AF74` → 130 | `0x25329624EF6A5FF6` → 747 | `0x501EE67250FD0E21` → 144 |
 | string `"été"` (UTF-8 `c3 a9 74 c3 a9`) | `0x38F345607F8C14EC` → 806 | `0x75787F10A22C78A7` → 491 | `0x43BEC0D845165366` → 163 |
 
 Several of these hashes have the top bit set, so an implementation that skips the shift or treats the hash as signed gets different buckets.
@@ -213,7 +215,7 @@ Reading this image back with seed 9001 gives estimates of 10 for 1, 810 for 9 an
 
 ## 8. Cross-language test files
 
-Each implementation generates the files below into its `serialization_test_data/<language>_generated_files` directory, as described in [Serialization snapshots](serialization-snapshots.md), and checks the files generated by the other languages.
+Each implementation generates the files below into its `serialization_test_data/<language>_generated_files` directory, as described in [Serialization snapshots](../docs/serialization-snapshots.md), and checks the files generated by the other languages.
 
 ### 8.1 Names and contents
 
@@ -221,15 +223,15 @@ File names have the form `count_min_v2_<case>_<language>.sk`, where `<language>`
 
 Every file uses `numHashes` = 3 and `numBuckets` = 1000.
 
-| Case | Seed | `N` |
-|---|---:|---:|
-| `n0` | 9001 | 0 (empty) |
-| `n1` | 9001 | 1 |
-| `n10` | 9001 | 10 |
-| `n100` | 9001 | 100 |
-| `n1000` | 9001 | 1000 |
-| `n10000` | 9001 | 10000 |
-| `seed42_n1000` | 42 | 1000 |
+| Case           | Seed |       `N` |
+|----------------|-----:|----------:|
+| `n0`           | 9001 | 0 (empty) |
+| `n1`           | 9001 |         1 |
+| `n10`          | 9001 |        10 |
+| `n100`         | 9001 |       100 |
+| `n1000`        | 9001 |      1000 |
+| `n10000`       | 9001 |     10000 |
+| `seed42_n1000` |   42 |      1000 |
 
 For each `i` from 0 to `N - 1`, the sketch is updated twice:
 - with the 64-bit integer `i` and weight `i + 1`;

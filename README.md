@@ -14,9 +14,9 @@ This repository contains snapshots of serialized sketches, which a particular Da
 
 See [Serialization snapshots](docs/serialization-snapshots.md) for the repository design, the snapshot generation commands, and the maintainer workflow for updating the corpus from an upstream DataSketches implementation.
 
-Format specifications:
+### RFCs
 
-- [Count-Min sketch, serialization format version 2](docs/count-min-format.md)
+The [RFC index](rfcs/README.md) lists compatibility specifications shared across DataSketches implementations.
 
 ## Contribute
 
