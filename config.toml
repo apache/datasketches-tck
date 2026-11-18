@@ -27,4 +27,4 @@ commit = "fe31572f5190d728e88c651dfd8db1b89af154fc"
 
 [snapshot.rust]
 repository = "https://github.com/apache/datasketches-rust.git"
-commit = "4ef634f6d532ecd7cbd8a5d416cc756d07628911"
+commit = "a6e4695fc3a79e9a3d29959eb92d76a6db676f4a"

@@ -36,7 +36,7 @@ func generateRust(
 		"run",
 		"--release",
 		"--locked",
-		"--package", "snapshots",
+		"--package", "gensnap",
 		"--",
 		"--output-dir", generated,
 	); err != nil {
