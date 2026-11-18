@@ -1,22 +1,8 @@
 # Apache® DataSketches™ Technology Compatibility Kit
 
-This repository provides a Technology Compatibility Kit for the DataSketches library.
+The Technology Compatibility Kit (TCK) provides [serialized sketch snapshots](serialization_test_data/) and generators so DataSketches implementations can test compatibility across languages.
 
-A Technology Compatibility Kit (TCK) is a suite of tests that checks a particular DataSketches implementation for compatibility.
-
-## Overview
-
-### Serialization snapshots
-
-The structure (or image) of a serialized sketch is independent of the language from which it was created.
-
-This repository contains snapshots of serialized sketches, which a particular DataSketches implementation should be able to read. Snapshot generators are also included.
-
-See [Serialization snapshots](docs/serialization-snapshots.md) for the repository design, the snapshot generation commands, and the maintainer workflow for updating the corpus from an upstream DataSketches implementation.
-
-Format specifications:
-
-- [Count-Min sketch, serialization format version 2](docs/count-min-format.md)
+The [RFC index](rfcs/README.md) lists the designs and format specifications used by the TCK. The [snapshot maintenance guide](docs/serialization-snapshots.md) explains how to regenerate, update, and check the corpus.
 
 ## Contribute
 
