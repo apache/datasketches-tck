@@ -17,9 +17,10 @@
 
 # DataSketches TCK RFCs
 
-- [RFC 0001: Serialization snapshots](0001-serialization-snapshots.md)
-- [RFC 0021: Count-Min sketch serialization format, version 2](0021-count-min-format.md)
+RFCs document compatibility rules that DataSketches implementations agree to follow across languages.
+
+- [RFC 0021: Count-Min serialization format v2](0021-count-min-format.md)
 
 ## Adding an RFC
 
-Each RFC takes its number from the pull request that first introduced the design. To propose a new RFC, open a pull request with `rfcs/0000-short-title.md`. Once the PR has a number, replace `0000` with the PR number padded to four digits, link to the PR in the RFC, and add the RFC to the list above.
+Each RFC takes its number from the pull request that introduced the proposal. To propose a new RFC, open a pull request with `rfcs/0000-short-title.md`. Once the PR has a number, replace `0000` with the PR number padded to four digits, link to the PR in the RFC, and add the RFC to the list above.

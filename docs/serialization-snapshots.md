@@ -15,9 +15,13 @@
   limitations under the License.
 -->
 
-# Maintaining serialization snapshots
+# Serialization snapshots
 
-[RFC 0001](../rfcs/0001-serialization-snapshots.md) describes how DataSketches implementations use the shared snapshot corpus for cross-language tests.
+The serialization corpus is a compatibility boundary between DataSketches implementations. Each directory `serialization_test_data/<language>_generated_files` contains sketches produced by one implementation and intended to be read and validated by the others.
+
+The DataSketches implementation repositories use the same `serialization_test_data/<language>_generated_files` layout for their cross-language fixtures, so a TCK checkout can serve directly as an implementation's test data root, and moving files between the TCK and an implementation is a plain copy.
+
+The `main` branch of this repository publishes self-tested snapshot updates from every source language when the file set or stable contents change. Each language validates its own snapshots with its generators and round-trip tests before they reach the TCK, so a snapshot set that passes there is ready to publish. Whether each implementation can read the others' snapshots is then answered by running its cross-language tests against the latest set, not by reviewing the `.sk` files by hand.
 
 `config.toml` records the repository and exact commit each snapshot directory was generated from, so any TCK commit remains reproducible:
 
@@ -121,6 +125,14 @@ mise run tck -- snapshots --help
 Mise supplies Go, CMake and CTest, Java, Maven, and Rust. Git is required for every source language, a C++ compiler is required for C++, and Make is required for Go.
 
 Check accepts `cpp`, `go`, `java`, `rust`, or `all` and is always read-only. Update defaults to all languages at `HEAD`; specifying a language limits the update to that source, and a second argument selects its revision. The former `snapshots sync` command is replaced by `snapshots update <language> <recorded-commit>`.
+
+## Use the corpus from an implementation
+
+An implementation consumes the `.sk` files as test fixtures. Its compatibility tests should load snapshots produced by the other source languages, deserialize each supported sketch family, and assert observable results with tolerances appropriate to that algorithm.
+
+This repository centralizes the fixture corpus and source-side generation. Consumer tests remain in the individual DataSketches implementation repositories.
+
+By default, an implementation should test against the latest snapshot set on `main`. A failure then shows exactly which source language and sketch disagree, as early as possible. To keep a release or a CI run from changing underneath it, an implementation can instead pin a specific TCK commit.
 
 ## Review policy for probabilistic snapshots
 
