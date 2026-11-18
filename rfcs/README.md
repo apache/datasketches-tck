@@ -20,6 +20,7 @@
 RFCs document compatibility rules that DataSketches implementations agree to follow across languages.
 
 - [RFC 0021: Count-Min serialization format v2](0021-count-min-format.md)
+- [RFC 0027: Input hashing](0027-input-hashing.md) (draft)
 
 ## Adding an RFC
 

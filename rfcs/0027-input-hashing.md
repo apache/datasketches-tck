@@ -15,7 +15,9 @@
   limitations under the License.
 -->
 
-# RFC 0000: Input hashing
+# RFC 0027: Input hashing
+
+Originating pull request: [#27](https://github.com/apache/datasketches-tck/pull/27).
 
 **Draft.** This proposal defines the bytes that interoperable sketches and filters feed to their hash functions. Each family specifies its supported item types, hash algorithm, seeds, and how hashes select counters, registers, or filter bits. For example, [Count-Min v2](0021-count-min-format.md#4-item-encoding) supports integers, strings, and bytes. Its floating-point input remains undefined.
 
