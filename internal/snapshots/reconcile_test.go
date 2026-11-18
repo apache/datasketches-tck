@@ -172,6 +172,7 @@ func TestUpdateUnstableOnlyPolicy(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, oldRevision, config.Snapshot.CPP.Commit)
 			require.Equal(t, oldRevision, config.Snapshot.Java.Commit)
+			require.Equal(t, oldRevision, config.Snapshot.Rust.Commit)
 			expected := test.generated
 			if test.keepOld {
 				expected = map[string]string{"stable.sk": "old", "unstable.sk": "old"}
@@ -260,7 +261,7 @@ func updateFixture(t *testing.T) (string, string, string) {
 	}
 	root := t.TempDir()
 	pin := snapshotSource{Repository: source, Commit: oldRevision}
-	content, err := encodeConfig(repositoryConfig{Snapshot: snapshotSources{CPP: pin, Go: pin, Java: pin}})
+	content, err := encodeConfig(repositoryConfig{Snapshot: snapshotSources{CPP: pin, Go: pin, Java: pin, Rust: pin}})
 	require.NoError(t, err)
 	writeTestFile(t, filepath.Join(root, configFilename), string(content))
 	for _, language := range Languages() {

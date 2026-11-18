@@ -38,7 +38,8 @@ var countPattern = regexp.MustCompile(`_n([0-9]+)(?:_|$)`)
 // and the repeated-generation inventory recorded at
 // https://www.mail-archive.com/dev%40datasketches.apache.org/msg04302.html.
 // They are intentionally source-specific: for example, the pinned Go KLL
-// generator enables its deterministic test offset, while C++ and Java do not.
+// generator enables its deterministic test offset, while C++ and Java do not,
+// and the Rust Bloom filter generator uses a fixed seed.
 
 func cppStability(path string) Stability {
 	if cppOrJavaUnstable(filepath.Base(path)) {
@@ -64,6 +65,20 @@ func goStability(path string) Stability {
 	case strings.HasPrefix(name, "reservoir_") && strings.Contains(name, "_sampling_"):
 		return Unstable
 	case varOptUnstable(name):
+		return Unstable
+	default:
+		return Stable
+	}
+}
+
+func rustStability(path string) Stability {
+	name := filepath.Base(path)
+	switch {
+	case strings.HasPrefix(name, "density_") && countAtLeast(name, 100):
+		return Unstable
+	case strings.HasPrefix(name, "kll_") && countAtLeast(name, 1000):
+		return Unstable
+	case strings.HasPrefix(name, "req_float_") && countAtLeast(name, 100):
 		return Unstable
 	default:
 		return Stable

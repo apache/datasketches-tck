@@ -51,7 +51,7 @@ func newSnapshotsCommand() *cobra.Command {
 
 func newSnapshotCheckCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:       "check <cpp|go|java|all>",
+		Use:       "check <cpp|go|java|rust|all>",
 		Short:     "Check the snapshot set and stable snapshot contents",
 		Long:      "Regenerate snapshots at the configured commits without writing files. Additions, deletions, and stable content changes fail the check; unstable content changes are allowed.",
 		Args:      cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),
@@ -90,7 +90,7 @@ func newSnapshotCheckCommand() *cobra.Command {
 func newSnapshotUpdateCommand() *cobra.Command {
 	var skipUnstableOnly bool
 	command := &cobra.Command{
-		Use:   "update [cpp|go|java] [revision]",
+		Use:   "update [cpp|go|java|rust] [revision]",
 		Short: "Update snapshots and source revisions together",
 		Long:  "Update all sources to their remote HEADs, or select one language and optionally a branch, tag, or commit. All selected sources are generated before any snapshots or pins are published.",
 		Args: func(command *cobra.Command, args []string) error {
@@ -143,6 +143,8 @@ func languageHeading(language string) string {
 		return "Go"
 	case "java":
 		return "Java"
+	case "rust":
+		return "Rust"
 	default:
 		return language
 	}
