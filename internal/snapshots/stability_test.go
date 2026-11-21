@@ -38,6 +38,8 @@ func TestSnapshotStability(t *testing.T) {
 		{name: "cpp compacted KLL", stability: cppStability, path: "kll_long_n1000_cpp.sk", expected: Unstable},
 		{name: "cpp exact REQ", stability: cppStability, path: "req_float_n10_cpp.sk", expected: Stable},
 		{name: "cpp compacted REQ", stability: cppStability, path: "req_float_n100_cpp.sk", expected: Unstable},
+		{name: "cpp exact density", stability: cppStability, path: "density_double_n10_cpp.sk", expected: Stable},
+		{name: "cpp compacted density", stability: cppStability, path: "density_float_n100_cpp.sk", expected: Unstable},
 		{name: "java compacted quantiles", stability: javaStability, path: "quantiles_string_n1000_java.sk", expected: Unstable},
 		{name: "java varopt exact mode", stability: javaStability, path: "varopt_sketch_long_n10_java.sk", expected: Stable},
 		{name: "java varopt sampling mode", stability: javaStability, path: "varopt_sketch_long_n100_java.sk", expected: Unstable},

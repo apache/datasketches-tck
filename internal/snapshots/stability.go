@@ -42,10 +42,16 @@ var countPattern = regexp.MustCompile(`_n([0-9]+)(?:_|$)`)
 // and the Rust Bloom filter generator uses a fixed seed.
 
 func cppStability(path string) Stability {
-	if cppOrJavaUnstable(filepath.Base(path)) {
+	name := filepath.Base(path)
+	switch {
+	case cppOrJavaUnstable(name):
 		return Unstable
+	// C++ density compaction uses a random shuffle that the generator does not seed
+	case strings.HasPrefix(name, "density_") && countAtLeast(name, 100):
+		return Unstable
+	default:
+		return Stable
 	}
-	return Stable
 }
 
 func javaStability(path string) Stability {
